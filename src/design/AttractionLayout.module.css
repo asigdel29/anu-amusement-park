@@ -1,0 +1,65 @@
+/*
+ * AttractionLayout styling.
+ *
+ * The attraction's accent arrives as a local `--accent` custom property set inline
+ * by the component. It drives the heading rule and the construction notice's
+ * border. It never drives body text — see the component's invariants.
+ */
+
+.page {
+  min-height: 100dvh;
+  padding: var(--grid-margin);
+  padding-bottom: 6rem;
+  display: grid;
+  align-content: start;
+  gap: 2rem;
+  max-width: calc(var(--content-max) + 2 * var(--grid-margin));
+}
+
+.back {
+  font-size: var(--body-sm);
+  color: var(--text-muted);
+  text-decoration: none;
+  justify-self: start;
+}
+
+@media (any-hover: hover) {
+  .back:hover {
+    color: var(--text-primary);
+  }
+}
+
+.header {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.lede {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--body-lg);
+}
+
+.rule {
+  margin: 0.5rem 0 0;
+  border-top-color: var(--accent);
+  border-top-width: 2px;
+  width: 4rem;
+}
+
+.construction {
+  border: 1px solid var(--surface-hairline);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-panel);
+  background: var(--surface-panel);
+  padding: 1.25rem;
+}
+
+.construction h2 {
+  margin-bottom: 0.5rem;
+}
+
+.construction p {
+  margin: 0;
+  color: var(--text-muted);
+}

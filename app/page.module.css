@@ -1,0 +1,40 @@
+/*
+ * The park page's own layout. Intentionally sparse: this is the markup the 3D
+ * layer will sit on top of, so it must not fight the canvas for space or set a
+ * height the canvas then has to override.
+ */
+
+.page {
+  min-height: 100dvh;
+  padding: var(--grid-margin);
+  display: grid;
+  align-content: start;
+  gap: 2.5rem;
+}
+
+.masthead {
+  padding-top: 2rem;
+}
+
+.masthead h1 {
+  /* The one place the display scale reaches its upper steps. */
+  font-size: var(--display-1);
+}
+
+@media (min-width: 768px) {
+  .masthead h1 {
+    font-size: var(--display-3);
+  }
+}
+
+@media (min-width: 1440px) {
+  .masthead h1 {
+    font-size: var(--display-4);
+  }
+}
+
+.subtitle {
+  margin: 0.5rem 0 0;
+  color: var(--neon-yellow);
+  font-size: var(--body-lg);
+}

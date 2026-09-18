@@ -1,0 +1,118 @@
+/*
+ * globals.css — reset, base element styling, and the shared content-page rhythm.
+ *
+ * Contract: imports the token file and then styles bare elements only. Every value
+ * here is a token reference. Component-specific rules do not belong in this file;
+ * they belong in a CSS module beside their component.
+ *
+ * Invariant: a content route that ships no CSS of its own is still readable,
+ * correctly scaled and AA-contrasting on a phone. The static text navigation
+ * (the no-WebGL path) depends on exactly that.
+ */
+
+@import "../src/design/tokens.css";
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  /* The park canvas fills the viewport and must not be scrolled by rubber-banding;
+   * content routes scroll normally because they are taller than the viewport. */
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--surface-ground);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: var(--body-md);
+  font-weight: var(--weight-body);
+  letter-spacing: var(--tracking-body);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: var(--weight-display);
+  letter-spacing: var(--tracking-display);
+  line-height: 1.05;
+  margin: 0;
+  text-wrap: balance;
+}
+
+h1 {
+  font-size: var(--display-1);
+}
+
+@media (min-width: 768px) {
+  h1 {
+    font-size: var(--display-2);
+  }
+}
+
+h2 {
+  font-size: var(--body-lg);
+  text-transform: lowercase;
+}
+
+p {
+  margin: 0 0 1em;
+  max-width: var(--content-max);
+}
+
+a {
+  color: var(--neon-cyan);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+
+/* Hover affordances are gated so a touch device never inherits a hover-only
+ * path — the reason the park's pins remain usable on a phone. */
+@media (any-hover: hover) {
+  a:hover {
+    color: var(--neon-mint);
+  }
+}
+
+/* A visible focus ring is not optional: keyboard traversal of the park's pins and
+ * of the static navigation is the site's accessibility backbone. */
+:focus-visible {
+  outline: 2px solid var(--neon-mint);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+ul {
+  padding-left: 1.1em;
+  max-width: var(--content-max);
+}
+
+hr {
+  border: 0;
+  border-top: 1px solid var(--surface-hairline);
+  margin: 2.5rem 0;
+}
+
+/* Skip link: present on every route, visible only once focused. */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  background: var(--surface-panel);
+  color: var(--text-primary);
+  padding: 0.75rem 1.125rem;
+  border-radius: var(--radius-chip);
+  z-index: 100;
+}
+
+.skip-link:focus {
+  left: var(--grid-margin);
+  top: var(--grid-margin);
+}

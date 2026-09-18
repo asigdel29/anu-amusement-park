@@ -1,0 +1,115 @@
+# Asset pipeline
+
+The park's source of truth is `assets/park_build.py` — a Python script that
+builds the whole scene procedurally inside Blender. `assets/park.blend` is that
+script's committed output, and `public/models/park/*.glb` are derived from the
+`.blend` by the export pipeline.
+
+**Never hand-edit the `.blend`, and never hand-edit a shipped `.glb`.** The
+previous generation of this world drifted exactly that way: the Blender file and
+the shipped models stopped agreeing, and there was no way to tell which was
+right. A procedural build script cannot drift from itself.
+
+## Why procedural
+
+A `.blend` is an opaque binary. A diff over one tells you nothing, a merge
+conflict in one is unresolvable, and a review of one is a screenshot. The build
+script is text: it reviews, diffs, and merges. It also means the park can be
+rebuilt from scratch on any machine with Blender installed, which is what makes
+the scene reproducible in the sense the project requires.
+
+Blender is driven through its MCP connection during authoring — small changes
+executed live, with a viewport screenshot after each one — and every change that
+survives is written back into `park_build.py`. The live session is the
+sketchpad; the script is the artefact.
+
+## Running it
+
+```sh
+# Build the scene from scratch into assets/park.blend
+blender --background --python assets/park_build.py -- assets/park.blend
+
+# Bake lighting, export geometry and pin positions
+blender --background assets/park.blend --python assets/pipeline/bake_export.py -- /tmp/park-export
+
+# Draco-compress geometry and convert textures, into public/models/park/
+sh assets/pipeline/compress.sh /tmp/park-export
+```
+
+`npm run assets:export` wraps the last two steps.
+
+Export runs **headless**, outside the interactive Blender session. The authoring
+socket times out on a real Cycles bake, which is a lesson already learned in
+`anu-agent-world/assets/pipeline/export.py`; do not try to bake over MCP.
+
+## The baked-unlit contract
+
+This is the load-bearing convention, adopted from the navigation reference and
+from `anu-minecraft-world/assets/pipeline/bake_export.py`:
+
+> Every baked mesh exports **one** material, with the Cycles bake wired into the
+> **Emission** socket and the base colour set to **black**. In glTF that lands
+> as an `emissiveTexture` plus a `baseColorFactor` of `[0, 0, 0, 1]`.
+
+The runtime holds up the other end: `src/park/convertMaterial.ts` turns any
+material shaped like that into an unlit `MeshBasicMaterial` with the emissive
+texture as its map. A base-colour texture carrying alpha becomes a cutout for
+foliage and signage; a bare base colour with no texture becomes a flat unlit
+colour, which is how the cheap prop clusters ship.
+
+The consequence is that **the shipped scene contains no lights and does no
+shadow pass**. All of the lighting is pixels. This is what buys the frame budget
+on a phone, and it is why the park can be dense.
+
+Two things follow, and both are easy to forget:
+
+1. Nothing in the scene can respond to light at runtime. A prop that needs to
+   glow needs to have been baked glowing, or be a flat emissive colour.
+2. A re-bake is a visual change even when no geometry moved. That is why
+   `npm run test:regression` screenshots the park at fixed camera poses — a bake
+   that shifts the mood is otherwise invisible to every other gate.
+
+## Pin positions flow one direction
+
+`park_build.py` places one named Empty per attraction, named after that
+attraction's `id` in `src/content/attractions.ts`. `bake_export.py` writes their
+world positions to `assets/pipeline/pins.json`:
+
+```json
+{ "agent_arcade": [12.5, 0.0, -8.25] }
+```
+
+**Numbers flow one direction: Blender → JSON → the application.** A pin position
+is never typed into TypeScript. If it were, the pin would sit where nobody put
+any geometry.
+
+`tests/attractions.test.ts` asserts that the key set of `pins.json` equals the
+id set of `ATTRACTIONS`, so a ride added in Blender without a route — or a route
+without a ride — fails the build.
+
+Attraction ids are constrained to `^[a-z][a-z0-9_]*$` for this reason: the glTF
+exporter mangles names outside that set, which would break the join silently.
+
+## Compression
+
+`compress.sh` runs `@gltf-transform/cli optimize` with `--compress draco` and
+`--texture-compress webp`.
+
+WebP rather than KTX2/Basis, deliberately. KTX2 would roughly halve GPU memory,
+but it needs the external `ktx` binary as a build dependency. The reference site
+does use Basis; this pipeline will too, but only once a measurement shows GPU
+memory is the actual ceiling. Until then the extra build dependency costs more
+than it returns. `src/park/useGLTFUnlit.ts` already wires a self-hosted
+`KTX2Loader`, so the switch is a pipeline change and not an application one.
+
+Both the Draco and the KTX2 decoders are **vendored** under `public/draco/` and
+`public/basis/` rather than loaded from a CDN. That is what lets
+`next.config.ts` keep `connect-src 'self'` with no exception — see the CSP
+invariants there.
+
+## Budgets
+
+Geometry ≤ 1.5 MB after Draco; textures ≤ 800 KB. `npm run size` enforces both
+and reports them as pending until the files exist. The reference site's
+equivalent numbers, for calibration: 1.12 MB for its entire island set, 9 KB for
+its pin geometry.

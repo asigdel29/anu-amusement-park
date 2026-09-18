@@ -1,0 +1,149 @@
+/*
+ * tokens.css — the single source of every visual constant in this site.
+ *
+ * Contract: every color, type size, radius, easing curve, duration, breakpoint and
+ * grid measure used anywhere — by the park's DOM overlay and by the content routes
+ * alike — is declared here as a custom property on :root and referenced by name.
+ *
+ * Requires of callers: reference tokens, never literals. A hex value, a bare px
+ * radius or an inline cubic-bezier appearing in any other file is a defect; the
+ * park and the pages would then be able to drift apart, which is exactly what this
+ * file exists to prevent.
+ *
+ * Invariants:
+ *   1. Every --neon-* value is a color that clears WCAG AA large-text contrast
+ *      (>= 3.0:1) against both --surface-ground and --surface-panel.
+ *   2. --neon-purple is the only accent that fails AA body contrast (3.79:1 against
+ *      --surface-panel). It is therefore admissible only for display type, park
+ *      signage and pin fills — never for body copy. Enforced by tests/tokens.test.ts.
+ *   3. Motion tokens are inert under prefers-reduced-motion: the duration tokens are
+ *      redefined to 0s at the bottom of this file, so a component that honours the
+ *      tokens honours the preference without branching.
+ *
+ * Provenance: the neon set, the four easing curves, the display scale, the grid
+ * measures and the breakpoints are measured from the shipped stylesheet of
+ * https://madbox.io/ — the navigation reference recorded in docs/DESIGN.md. The
+ * surfaces are this site's own: Madbox is daylight pastel, this park is at night.
+ *
+ * Contrast ratios below are computed, not estimated; scripts/contrast.mjs reproduces
+ * them and tests/tokens.test.ts asserts them.
+ */
+
+:root {
+  /* ---------------------------------------------------------------- color */
+
+  /* Neon accent set. One is assigned per attraction in src/content/attractions.ts,
+   * and that single assignment drives the pin, the page heading rule and the
+   * Blender emissive signage, so the park and the page cannot disagree. */
+  --neon-pink: #ff3891; /* 5.59:1 on panel — body-safe */
+  --neon-yellow: #ffbf04; /* 11.41:1 — body-safe */
+  --neon-cyan: #00c2ff; /* 9.12:1 — body-safe */
+  --neon-purple: #ad00ff; /* 3.79:1 — LARGE TYPE AND SIGNAGE ONLY */
+  --neon-mint: #4ff29f; /* 13.05:1 — body-safe */
+  --neon-blue: #38b7ff; /* 8.43:1 — body-safe */
+
+  /* The one gradient Madbox uses for its primary call to action. Kept because a
+   * flat neon fill reads as a disabled state against these surfaces. */
+  --gradient-cta: linear-gradient(180deg, #ffbf04, #ff6069);
+
+  /* Surfaces. Near-black rather than pure black: #000 makes the baked park's
+   * darkest bake values indistinguishable from the page behind it. */
+  --surface-ground: #08070d;
+  --surface-panel: #121019;
+  --surface-hairline: #241f33;
+
+  --text-primary: #f4f1ea; /* 16.71:1 on panel */
+  --text-muted: #9a94ad; /* 6.48:1 on panel — body-safe */
+
+  /* --------------------------------------------------------------- typography */
+
+  --font-display: var(--font-changa), "Arial Black", sans-serif;
+  --font-body: var(--font-work-sans), Arial, sans-serif;
+
+  /* Display scale, five steps. Applied by breakpoint, not chosen per-component. */
+  --display-1: 1.875rem;
+  --display-2: 3.75rem;
+  --display-3: 4.375rem;
+  --display-4: 6.25rem;
+  --display-5: 8.75rem;
+
+  --body-sm: 0.875rem;
+  --body-md: 1rem;
+  --body-lg: 1.125rem;
+
+  --weight-body: 600;
+  --weight-display: 800;
+
+  /* Display type is set tight; body type is not. */
+  --tracking-display: -0.03em;
+  --tracking-body: -0.01em;
+
+  /* ---------------------------------------------------------------- geometry */
+
+  --radius-pill: 5.9375rem; /* fully round at every height we use */
+  --radius-panel: 1.25rem;
+  --radius-chip: 0.9375rem;
+
+  /* Also the WCAG 2.5.5 target-size floor. A pin may look smaller than this —
+   * its hit area may not. */
+  --pin-hit-size: 44px;
+
+  /* ------------------------------------------------------------------ layout */
+
+  --grid-columns: 12;
+  --grid-gutter: 0px;
+  --grid-margin: 16px;
+  --content-max: 46rem; /* measure, not viewport: ~75ch of --body-lg */
+  --header-height: 3.125rem;
+
+  /* ------------------------------------------------------------------ motion */
+
+  --ease-default: cubic-bezier(0.215, 0.61, 0.355, 1);
+  --ease-fade: cubic-bezier(0.19, 1, 0.22, 1);
+  --ease-overshoot: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --ease-exit: cubic-bezier(0.55, 0.055, 0.675, 0.19);
+
+  --duration-fade: 400ms;
+  --duration-pop: 600ms;
+  --duration-fly: 800ms; /* camera fly-to; read by src/park/useFlyTo.ts */
+  --stagger-pin: 100ms;
+}
+
+/* Breakpoints: 480 / 768 / 960 / 1024 / 1440 / 1920. Only the steps that actually
+ * change a token appear below; the rest exist as component-level media queries. */
+
+@media (min-width: 480px) {
+  :root {
+    --header-height: 3.75rem;
+  }
+}
+
+@media (min-width: 768px) {
+  :root {
+    --grid-gutter: 40px;
+    --grid-margin: 40px;
+    --header-height: 5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --grid-margin: 80px;
+    --header-height: 6.75rem;
+  }
+}
+
+/*
+ * Reduced motion. Zeroing the duration tokens rather than removing transitions
+ * keeps the final state identical — a component still lands where it was going,
+ * it just arrives immediately. Components must not hard-code a duration, or this
+ * has no effect on them.
+ */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fade: 0s;
+    --duration-pop: 0s;
+    --duration-fly: 0s;
+    --stagger-pin: 0s;
+  }
+}
