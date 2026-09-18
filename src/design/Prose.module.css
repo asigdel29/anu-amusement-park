@@ -1,0 +1,40 @@
+/*
+ * Prose styling. Only element selectors: the content modules decide what text
+ * exists and `Prose` decides what elements it becomes, so there is nothing
+ * here to hang a class on.
+ */
+
+.prose {
+  display: grid;
+  gap: 2rem;
+}
+
+.prose section {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.prose p:last-child,
+.prose ul:last-child {
+  margin-bottom: 0;
+}
+
+.prose li {
+  margin-bottom: 0.35rem;
+}
+
+/*
+ * Emphasis is the source copy's `*asterisk*` convention. Rendered as a colour
+ * shift rather than italics: the display face is heavy and geometric, and its
+ * italic is a slanted version of the same weight that reads as a rendering
+ * fault at body size.
+ *
+ * --neon-mint rather than the page's accent, deliberately. The accent varies
+ * per attraction and one of the six fails AA for body text; emphasis appears
+ * inside body copy on every page, so it needs a single body-safe colour.
+ * --neon-mint is the highest-contrast token in the palette at 13.05:1.
+ */
+.emphasis {
+  font-style: normal;
+  color: var(--neon-mint);
+}

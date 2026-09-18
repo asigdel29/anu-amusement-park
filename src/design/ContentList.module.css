@@ -1,0 +1,76 @@
+/*
+ * Shared list styling for the attraction pages: projects, books and links.
+ *
+ * One stylesheet rather than three, because all three are the same thing — a
+ * titled row with a line of description, linked where there is somewhere to
+ * go. Three near-identical stylesheets would have drifted apart within a week.
+ */
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+  max-width: var(--content-max);
+}
+
+.entry {
+  display: grid;
+  gap: 0.35rem;
+  padding: 1rem 1.125rem;
+  border: 1px solid var(--surface-hairline);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-chip);
+  background: var(--surface-panel);
+}
+
+.title {
+  font-family: var(--font-display);
+  font-weight: var(--weight-display);
+  font-size: var(--body-lg);
+  letter-spacing: var(--tracking-display);
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+@media (any-hover: hover) {
+  a.title:hover {
+    color: var(--neon-mint);
+  }
+}
+
+.meta {
+  color: var(--text-muted);
+  font-size: var(--body-sm);
+}
+
+.blurb {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.detail {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--body-sm);
+}
+
+/* The book spine colours are content, not design tokens — they identify books
+ * rather than attractions. Rendered as a decorative block, never behind text,
+ * so the palette's contrast rules do not apply. */
+.spine {
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  margin-top: 0.15rem;
+}
+
+/* Carried over from the source copy, which flagged four link URLs as
+ * best-guess matches from a search rather than links anyone had followed. The
+ * uncertainty is real and a visible flag is the only thing that will ever
+ * prompt someone to resolve it. */
+.unverified {
+  font-size: var(--body-sm);
+  color: var(--neon-yellow);
+}

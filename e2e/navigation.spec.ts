@@ -13,6 +13,7 @@
 
 import { test, expect } from "@playwright/test";
 import { ATTRACTIONS, ENTRANCE } from "../src/content/attractions";
+import { PROFILE } from "../src/content/profile";
 
 test.describe("the park directory", () => {
   test("lists every attraction", async ({ page }) => {
@@ -181,9 +182,12 @@ test.describe("reachable without JavaScript", () => {
   });
 
   test("the entrance renders", async ({ page }) => {
+    // The entrance's heading is the person, not the park's label for the
+    // destination. "the entrance" is what the pin and the directory call it;
+    // the page itself is an about page and says whose it is.
     await page.goto(`/${ENTRANCE.slug}`);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-      ENTRANCE.name,
+      PROFILE.name,
     );
   });
 });

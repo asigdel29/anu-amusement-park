@@ -1,0 +1,75 @@
+/*
+ * Fortune booth styling. The fortune itself is set at display size — it is the
+ * page's whole content, and a single sentence in body type on an otherwise
+ * empty page reads as a page that failed to load.
+ */
+
+.booth {
+  display: grid;
+  gap: 1.25rem;
+  justify-items: start;
+  max-width: var(--content-max);
+}
+
+.fortune {
+  margin: 0;
+  padding: 1.5rem 1.75rem;
+  border: 1px solid var(--surface-hairline);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-panel);
+  background: var(--surface-panel);
+  font-family: var(--font-display);
+  font-weight: var(--weight-display);
+  font-size: var(--body-lg);
+  letter-spacing: var(--tracking-display);
+  line-height: 1.35;
+  min-height: 5.5rem;
+  display: flex;
+  align-items: center;
+}
+
+@media (min-width: 768px) {
+  .fortune {
+    font-size: var(--display-1);
+  }
+}
+
+/* Body-safe on every surface, and the same emphasis colour Prose uses, so a
+ * highlighted phrase means one thing across the whole site. */
+.emphasis {
+  font-style: normal;
+  color: var(--neon-mint);
+}
+
+/* The one place the reference's gradient call-to-action is used, because this
+ * is the one page with a thing to press. */
+.draw {
+  font-family: var(--font-display);
+  font-weight: var(--weight-display);
+  font-size: var(--body-sm);
+  letter-spacing: var(--tracking-body);
+  color: var(--surface-ground);
+  background: var(--gradient-cta);
+  border: 0;
+  border-radius: var(--radius-pill);
+  min-height: var(--pin-hit-size);
+  padding: 0 1.5rem;
+  cursor: pointer;
+  transition: scale var(--duration-fade) var(--ease-overshoot);
+}
+
+@media (any-hover: hover) {
+  .draw:hover {
+    scale: 1.04;
+  }
+}
+
+.draw:active {
+  scale: 0.98;
+}
+
+.note {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--body-sm);
+}

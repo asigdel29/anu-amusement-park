@@ -1,0 +1,73 @@
+/*
+ * The entrance's own layout. Close to AttractionLayout's, but this page has no
+ * accent to carry — it is not a ride — so it does not share that stylesheet
+ * and pretend to have one.
+ */
+
+.page {
+  min-height: 100dvh;
+  padding: var(--grid-margin);
+  padding-bottom: 6rem;
+  display: grid;
+  align-content: start;
+  gap: 2rem;
+  max-width: calc(var(--content-max) + 2 * var(--grid-margin));
+}
+
+.back {
+  font-size: var(--body-sm);
+  color: var(--text-muted);
+  text-decoration: none;
+  justify-self: start;
+}
+
+@media (any-hover: hover) {
+  .back:hover {
+    color: var(--text-primary);
+  }
+}
+
+.header {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.intro {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--body-lg);
+}
+
+.emphasis {
+  font-style: normal;
+  color: var(--neon-mint);
+}
+
+.socials {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.socials a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.25rem;
+  padding: 0 1rem;
+  border: 1px solid var(--surface-hairline);
+  border-radius: var(--radius-pill);
+  background: var(--surface-panel);
+  color: var(--text-primary);
+  font-size: var(--body-sm);
+  text-decoration: none;
+}
+
+@media (any-hover: hover) {
+  .socials a:hover {
+    border-color: var(--neon-mint);
+    color: var(--neon-mint);
+  }
+}
