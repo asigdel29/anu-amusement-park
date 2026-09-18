@@ -31,15 +31,16 @@ const BUDGETS = [
     limit: 600 * 1024,
     measure: () => gzippedTotal(resolve(root, ".next/static/chunks"), /\.js$/),
   },
+  // One budget rather than two, because the baked atlas is embedded inside the
+  // glb rather than shipped beside it. Splitting geometry from textures here
+  // would leave the texture budget permanently unmeasurable, reporting
+  // "pending" forever while the bytes were counted under geometry anyway.
+  // `npx @gltf-transform/cli inspect` gives the breakdown when it is wanted.
   {
-    name: "baked park geometry (public/models/park/*.glb)",
+    name: "baked park payload (public/models/park, geometry + atlas)",
     limit: 1.5 * 1024 * 1024,
-    measure: () => rawTotal(resolve(root, "public/models/park"), /\.glb$/),
-  },
-  {
-    name: "baked park textures (public/models/park/*.webp)",
-    limit: 800 * 1024,
-    measure: () => rawTotal(resolve(root, "public/models/park"), /\.(webp|ktx2|basis)$/),
+    measure: () =>
+      rawTotal(resolve(root, "public/models/park"), /\.(glb|gltf|bin|webp|png|ktx2|basis)$/),
   },
 ];
 

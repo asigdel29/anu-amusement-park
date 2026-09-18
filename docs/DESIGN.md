@@ -166,14 +166,13 @@ including with `javaScriptEnabled: false`.
 Committed numbers, enforced by `npm run size` and `npm run test:perf`. They are
 derived from what the reference site itself ships.
 
-| Metric | Budget |
-| --- | --- |
-| Baked park geometry, after Draco | ≤ 1.5 MB |
-| Baked park textures | ≤ 800 KB |
-| Client JavaScript, gzipped | ≤ 600 KB |
-| Content route LCP, throttled mid-tier mobile | ≤ 1.5 s |
-| Park first-interactive, same profile | ≤ 3.5 s |
-| Steady-state frame time, mid-tier mobile | ≤ 16.7 ms p95 |
+| Metric | Budget | Now |
+| --- | --- | --- |
+| Baked park payload (geometry + embedded atlas) | ≤ 1.5 MB | 350 KB |
+| Client JavaScript, gzipped | ≤ 600 KB | 173 KB |
+| Content route LCP, throttled mid-tier mobile | ≤ 1.5 s | — |
+| Park first-interactive, same profile | ≤ 3.5 s | — |
+| Steady-state frame time, mid-tier mobile | ≤ 16.7 ms p95 | — |
 
 Changing a budget means changing it in this table and in
 `scripts/checkBundleSize.mjs` together, with the measurement that justifies it.

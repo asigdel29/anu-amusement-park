@@ -93,14 +93,42 @@ exporter mangles names outside that set, which would break the join silently.
 ## Compression
 
 `compress.sh` runs `@gltf-transform/cli optimize` with `--compress draco` and
-`--texture-compress webp`.
+`--texture-compress webp`. Measured on the current park:
 
-WebP rather than KTX2/Basis, deliberately. KTX2 would roughly halve GPU memory,
-but it needs the external `ktx` binary as a build dependency. The reference site
-does use Basis; this pipeline will too, but only once a measurement shows GPU
-memory is the actual ceiling. Until then the extra build dependency costs more
-than it returns. `src/park/useGLTFUnlit.ts` already wires a self-hosted
-`KTX2Loader`, so the switch is a pipeline change and not an application one.
+| Stage | Size |
+| --- | --- |
+| `Park.glb` straight out of Blender | 3.32 MB |
+| After Draco geometry + WebP textures | **350 KB** |
+| — of which the 2048² baked atlas | 273 KB |
+
+`--simplify` is off. The park is 9,485 polygons of deliberately flat-shaded
+geometry, and a decimator would round off exactly the chamfers that keep it from
+looking like programmer art.
+
+### When to switch to KTX2
+
+WebP rather than KTX2/Basis, deliberately: KTX2 needs the external `ktx` binary
+as a build dependency, and the reference site's own use of Basis is not on its
+own a reason to take that on.
+
+The number that decides it is **GPU memory, not transfer size**. WebP decodes to
+uncompressed RGBA in VRAM, so the 273 KB atlas costs **22.37 MB of VRAM**
+(`npx @gltf-transform/cli inspect public/models/park/Park.glb` reports it as
+`gpuSize`). KTX2/Basis would stay compressed on the GPU and cut that to roughly
+a quarter.
+
+22 MB for one texture is real but survivable on the phones this park targets.
+Switch when the perf harness shows memory pressure on a mid-tier device, or if
+the atlas is ever raised above 2048². `src/park/useGLTFUnlit.ts` already wires a
+self-hosted `KTX2Loader`, so it is a pipeline change and not an application one.
+
+### Backface culling
+
+The baked material sets `use_backface_culling`, because without it the glTF
+exporter marks the material `doubleSided` and the runtime shades both faces of
+every polygon in a closed, opaque island — doubling fragment work for geometry
+no camera angle can see the back of. The orbit rig never goes below the water
+line.
 
 Both the Draco and the KTX2 decoders are **vendored** under `public/draco/` and
 `public/basis/` rather than loaded from a CDN. That is what lets
@@ -109,7 +137,13 @@ invariants there.
 
 ## Budgets
 
-Geometry ≤ 1.5 MB after Draco; textures ≤ 800 KB. `npm run size` enforces both
-and reports them as pending until the files exist. The reference site's
-equivalent numbers, for calibration: 1.12 MB for its entire island set, 9 KB for
-its pin geometry.
+One budget of 1.5 MB for the whole park payload, enforced by `npm run size`.
+Currently 350 KB, so there is room for roughly four times the present park.
+
+It is one budget rather than separate geometry and texture budgets because the
+atlas is embedded *inside* the glb. Splitting them would leave the texture
+budget permanently unmeasurable — reporting "pending" forever while its bytes
+were counted under geometry anyway.
+
+The reference site's equivalent numbers, for calibration: 1.12 MB for its entire
+island set, 9 KB for its pin geometry.
