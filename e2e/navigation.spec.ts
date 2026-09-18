@@ -68,11 +68,41 @@ for (const attraction of ATTRACTIONS) {
   });
 }
 
+/*
+ * Safari keeps links out of the Tab order unless the user turns on "Press Tab
+ * to highlight each item on a webpage", which is off by default and is a
+ * browser preference no markup can override. Pressing Tab in WebKit therefore
+ * walks form controls only, and this site has none.
+ *
+ * So the assertion is split by what each engine can actually demonstrate. On
+ * Chromium and Firefox the Tab order is walked for real. On WebKit the same
+ * property is asserted the only way the platform permits: every link is
+ * focusable and none has been removed from the tab order, which is the part
+ * this site controls. Keyboard users on Safari reach these links either by
+ * enabling that preference or through VoiceOver, which navigates links
+ * regardless of it.
+ *
+ * The alternative — dropping WebKit from the keyboard tests — would have left
+ * the engine every iOS visitor uses with no keyboard coverage at all.
+ */
 test.describe("reachable without a pointer", () => {
   test("every attraction can be focused and opened by keyboard alone", async ({
     page,
+    browserName,
   }) => {
     await page.goto("/");
+
+    if (browserName === "webkit") {
+      for (const attraction of ATTRACTIONS) {
+        const link = page
+          .getByRole("navigation", { name: "park directory" })
+          .getByRole("link", { name: new RegExp(attraction.name, "i") });
+        await expect(link).not.toHaveAttribute("tabindex", "-1");
+        await link.focus();
+        await expect(link).toBeFocused();
+      }
+      return;
+    }
 
     // Tab through the document, collecting the hrefs that receive focus. The
     // skip link comes first; the directory's links follow in park order.
@@ -95,10 +125,32 @@ test.describe("reachable without a pointer", () => {
     }
   });
 
-  test("the skip link moves focus to the main landmark", async ({ page }) => {
+  test("the skip link is the first thing a keyboard reaches", async ({
+    page,
+    browserName,
+  }) => {
     await page.goto("/");
+    const skipLink = page.getByRole("link", { name: /skip to content/i });
+
+    if (browserName === "webkit") {
+      await expect(skipLink).toHaveAttribute("href", "#main");
+      await skipLink.focus();
+      await expect(skipLink).toBeFocused();
+      return;
+    }
+
     await page.keyboard.press("Tab");
-    await expect(page.getByRole("link", { name: /skip to content/i })).toBeFocused();
+    await expect(skipLink).toBeFocused();
+  });
+
+  test("the skip link target exists on every route", async ({ page }) => {
+    // The skip link is only worth having if it lands somewhere. Asserted for
+    // every route, in every engine, since this part is markup and not a
+    // browser preference.
+    for (const slug of ["", ...ATTRACTIONS.map((a) => a.slug), ENTRANCE.slug]) {
+      await page.goto(`/${slug}`);
+      await expect(page.locator("#main")).toHaveCount(1);
+    }
   });
 });
 
