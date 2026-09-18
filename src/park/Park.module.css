@@ -9,9 +9,12 @@
 .stage {
   position: fixed;
   inset: 0;
-  /* Below the page's own content, which is what a visitor falls back to. The
-   * pin layer lifts itself above this within the stage. */
-  z-index: 1;
+  /* Behind the page's own content, deliberately. The park is the backdrop the
+   * masthead sits on, not a lid over it: at z-index 1 the canvas covered the
+   * site's own title and its directory completely, so a sighted visitor saw
+   * the park and nothing else while the text it was meant to sit behind was
+   * still there, unreachable underneath. */
+  z-index: 0;
   /* The stage itself catches nothing; the canvas and the pins opt in. */
   pointer-events: none;
 }

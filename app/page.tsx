@@ -29,7 +29,10 @@ export default function ParkPage() {
           <h1>debugging reality</h1>
           <p className={styles.subtitle}>rides may break in production</p>
         </header>
-        <ParkDirectory />
+        <div className={styles.directory}>
+          <h2 className={styles.directoryHeading}>the park directory</h2>
+          <ParkDirectory />
+        </div>
       </main>
     </>
   );

@@ -15,15 +15,19 @@
   inset: 0;
   z-index: 9;
   opacity: 0;
-  /* Inert until the scene has loaded. Without this a visitor can click a pin
-   * that is still at its unprojected origin position. */
+  /* The layer NEVER takes pointer events, in any state. It spans the whole
+   * viewport, so enabling them on the layer swallowed every drag before it
+   * reached the canvas and left the park impossible to orbit anywhere — the
+   * pins worked and nothing else did.
+   *
+   * Individual pins opt back in below. `pinStore` then disables the ones
+   * behind the camera per frame, since an inline style beats this rule. */
   pointer-events: none;
   transition: opacity var(--duration-fade) var(--ease-default);
 }
 
 .layer.active {
   opacity: 1;
-  pointer-events: auto;
 }
 
 .pin {
@@ -46,6 +50,8 @@
   padding: 0 0.5rem;
   text-decoration: none;
   cursor: pointer;
+  /* Re-enabled on the pin itself, never on the layer. */
+  pointer-events: auto;
   opacity: var(--visible);
   scale: var(--visible);
   will-change: transform;

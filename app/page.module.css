@@ -4,16 +4,40 @@
  * height the canvas then has to override.
  */
 
+/*
+ * The park is a fixed backdrop behind this content, so everything here needs a
+ * stacking context above it and must not swallow the drags that orbit it.
+ *
+ * `pointer-events: none` on the page, re-enabled on the directory alone, is
+ * what lets a visitor drag the park from anywhere in the masthead's empty space
+ * while the directory's links stay clickable. Without it the page's box would
+ * intercept every pointer event over the top of the screen and the park would
+ * only be draggable in the margins.
+ */
 .page {
-  min-height: 100dvh;
+  position: relative;
+  z-index: 1;
   padding: var(--grid-margin);
   display: grid;
   align-content: start;
   gap: 2.5rem;
+  pointer-events: none;
 }
 
+/*
+ * The masthead holds the first screen on its own, so the park has a viewport to
+ * fill and the directory begins below it. Both are real and both are visible;
+ * they just are not competing for the same pixels.
+ */
 .masthead {
+  min-height: 100dvh;
   padding-top: 2rem;
+  display: grid;
+  align-content: start;
+}
+
+.directory {
+  pointer-events: auto;
 }
 
 .masthead h1 {
@@ -37,4 +61,9 @@
   margin: 0.5rem 0 0;
   color: var(--neon-yellow);
   font-size: var(--body-lg);
+}
+
+.directoryHeading {
+  margin-bottom: 1rem;
+  color: var(--text-muted);
 }
