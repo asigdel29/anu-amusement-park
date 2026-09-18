@@ -337,6 +337,30 @@ test.describe("the page still scrolls under the park", () => {
   });
 });
 
+test.describe("every route's own navigation is thumb-sized", () => {
+  test.use({ viewport: { width: 393, height: 852 }, hasTouch: true });
+
+  for (const attraction of ATTRACTIONS) {
+    test(`${attraction.name} can be left again`, async ({ page }) => {
+      // `← back to the park` is the only navigation on an attraction page, so
+      // on a phone it is the control a visitor reaches for most. As a bare
+      // line of small text it measured 131x22 — half the floor the pins are
+      // held to, and under the 24px AA minimum as well, which does not exempt
+      // it because it is a standalone link and not one inside a sentence.
+      //
+      // Asserted per route rather than once, because the layout is shared and
+      // a page that stopped using it would lose this silently.
+      await page.goto(`/${attraction.slug}`);
+      const back = page.getByRole("link", { name: /back to the park/i });
+      const box = await back.boundingBox();
+      expect(box, `${attraction.slug} has no way back`).not.toBeNull();
+      expect(box!.height, `${attraction.slug} back link height`).toBeGreaterThanOrEqual(
+        MIN_TARGET,
+      );
+    });
+  }
+});
+
 test.describe("no route overflows a phone", () => {
   // A narrow viewport rather than a full device descriptor: a descriptor
   // carries `defaultBrowserType`, which Playwright refuses inside a describe
