@@ -27,7 +27,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
-import { Vector3 } from "three";
+import { TOUCH, Vector3 } from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { PINNED_ATTRACTIONS } from "./pinnedAttractions";
 import { ORBIT } from "./orbitRig";
@@ -44,8 +44,21 @@ import { ORBIT } from "./orbitRig";
  */
 const [TARGET_X, TARGET_Y, TARGET_Z] = ORBIT.target;
 
-/** One-finger orbit, two-finger zoom — the gesture set from every map app. */
-const TOUCHES = { ONE: 1, TWO: 2 } as const;
+/**
+ * One-finger orbit, two-finger zoom — the gesture set from every map app.
+ *
+ * Named through three's own `TOUCH` enum rather than written as the numbers
+ * they happen to equal. This was `{ ONE: 1, TWO: 2 }`, which reads like
+ * "one finger, two fingers" and is in fact `{ ONE: PAN, TWO: DOLLY_PAN }`:
+ * `TOUCH` is `{ ROTATE: 0, PAN: 1, DOLLY_PAN: 2, DOLLY_ROTATE: 3 }`. Since
+ * `ORBIT.enablePan` is false, one finger was bound to a disabled action and
+ * the park could not be orbited by touch at all — on a phone, the only way it
+ * can be orbited.
+ *
+ * Nothing caught it: the e2e suite taps pins but never drags, and the latency
+ * harness orbits with a mouse, which goes through `mouseButtons` instead.
+ */
+const TOUCHES = { ONE: TOUCH.ROTATE, TWO: TOUCH.DOLLY_PAN } as const;
 import { useParkScene } from "./useGLTFUnlit";
 import { writePinPosition } from "./pinStore";
 import { cameraPosition, isComplete, orbitAt } from "./flyTo";
@@ -55,6 +68,36 @@ export function ParkScene({ onReady }: { onReady: () => void }) {
   const scene = useParkScene();
   const controls = useRef<OrbitControlsImpl | null>(null);
   const { camera, size, invalidate } = useThree();
+
+  /*
+   * Hand vertical drags back to the browser.
+   *
+   * `OrbitControls.connect()` sets `domElement.style.touchAction = "none"` on
+   * whatever element it listens to, unconditionally — so this cannot be
+   * expressed in Park.module.css or in the <Canvas> `style` prop. Both are
+   * overwritten at runtime, and both read as though they were in force.
+   *
+   * `none` is wrong here because the stage is fixed and fills the viewport:
+   * that element is what a finger lands on everywhere on the page, so the
+   * controls were taking every drag and the document could not be scrolled by
+   * touch at all. The masthead is `min-height: 100dvh`, which puts the
+   * directory below the fold on every phone — so the park was reachable and
+   * the site underneath it was not. That is backwards; the directory is the
+   * substrate and the park is a layer over it.
+   *
+   * `pan-y` returns vertical drags to the browser and keeps horizontal ones
+   * for the orbit. Azimuth is the axis that spins the island, and the polar
+   * angle is clamped to a 54-degree band regardless, so little is given up.
+   * Two-finger gestures still reach the controls, because `pan-y` withholds
+   * pinch-zoom from the browser too.
+   *
+   * Runs after the controls' own effect: child effects fire before the
+   * parent's, and <OrbitControls> is a child of this component.
+   */
+  useEffect(() => {
+    const element = controls.current?.domElement as HTMLElement | undefined;
+    if (element) element.style.touchAction = "pan-y";
+  }, []);
 
   // Reused across frames. Allocating a Vector3 per pin per frame is 420
   // allocations a second, which is exactly the shape of garbage that produces

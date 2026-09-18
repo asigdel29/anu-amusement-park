@@ -14,6 +14,7 @@ import { ATTRACTIONS, ENTRANCE } from "../src/content/attractions";
 import {
   PIN_LAYER_ACTIVE,
   PIN_LINKS,
+  directory,
   directoryLink,
   expectDirectoryListsEveryAttraction,
   pin,
@@ -171,6 +172,193 @@ test.describe("the park fits its viewport", () => {
       ).toHaveAccessibleName(new RegExp(attraction.name, "i"));
     }
   });
+});
+
+test.describe("the park can be orbited by touch", () => {
+  test.use({ hasTouch: true });
+
+  test("a one-finger drag moves the camera", async ({ page, browserName }) => {
+    // The gesture this asserts is the only way to orbit the park on a phone,
+    // and it was broken for the whole of the build without a single suite
+    // noticing: `touches` was written as `{ ONE: 1, TWO: 2 }`, which reads as
+    // "one finger, two fingers" but is `{ ONE: PAN, TWO: DOLLY_PAN }` in
+    // three's `TOUCH` enum — and panning is disabled, so one finger was bound
+    // to a disabled action.
+    //
+    // Nothing else covers it. The other specs tap pins, which is a different
+    // code path entirely, and the latency harness orbits with a mouse, which
+    // OrbitControls routes through `mouseButtons` rather than `touches`.
+    await requirePark(page, browserName);
+
+    const positions = () =>
+      page.$$eval(PIN_LINKS, (els) =>
+        els
+          .map((el) => (el as HTMLElement).style.getPropertyValue("--translateX"))
+          .join("|"),
+      );
+
+    const before = await positions();
+
+    // Dispatched as pointer events with `pointerType: "touch"` rather than
+    // through `page.touchscreen`, which can tap but cannot drag. This is the
+    // branch OrbitControls takes for a finger: it reads `pointerType` on
+    // pointerdown and hands off to its touch handlers.
+    await page.evaluate(() => {
+      const canvas = document.querySelector("canvas");
+      if (!canvas) throw new Error("no canvas to drag");
+      const at = (x: number) =>
+        new PointerEvent("pointermove", {
+          pointerId: 1,
+          pointerType: "touch",
+          isPrimary: true,
+          clientX: x,
+          clientY: Math.round(window.innerHeight * 0.45),
+          bubbles: true,
+          cancelable: true,
+        });
+
+      canvas.dispatchEvent(
+        new PointerEvent("pointerdown", {
+          pointerId: 1,
+          pointerType: "touch",
+          isPrimary: true,
+          clientX: 120,
+          clientY: Math.round(window.innerHeight * 0.45),
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+      for (let step = 1; step <= 12; step += 1) {
+        canvas.dispatchEvent(at(120 + step * 15));
+      }
+      canvas.dispatchEvent(
+        new PointerEvent("pointerup", {
+          pointerId: 1,
+          pointerType: "touch",
+          isPrimary: true,
+          clientX: 300,
+          clientY: Math.round(window.innerHeight * 0.45),
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    });
+
+    // The damping tail keeps rendering for a few frames after the finger lifts.
+    await expect
+      .poll(positions, { timeout: 4000 })
+      .not.toBe(before);
+  });
+});
+
+test.describe("the page still scrolls under the park", () => {
+  test.use({ hasTouch: true, viewport: { width: 393, height: 852 } });
+
+  test("a vertical drag reaches the directory", async ({
+    page,
+    browserName,
+    context,
+  }) => {
+    // The park's stage is fixed and fills the viewport, so the controls'
+    // element is what a finger lands on everywhere on the page. OrbitControls
+    // sets `touch-action: none` on it in `connect()`, which took every drag —
+    // and since the masthead is `min-height: 100dvh`, the directory sits below
+    // the fold on every phone. The park was reachable by touch and the site
+    // underneath it was not.
+    //
+    // Chromium only: this needs real touch input, and `Input.dispatchTouchEvent`
+    // goes through the browser's gesture recognition, which is what consults
+    // `touch-action`. Playwright's own touch API can tap but not drag, and
+    // synthetic pointer events bypass arbitration entirely — under either, this
+    // assertion would pass against a page that cannot be scrolled at all.
+    test.skip(
+      browserName !== "chromium",
+      "needs CDP touch input to exercise gesture arbitration",
+    );
+
+    await requirePark(page, browserName);
+    const cdp = await context.newCDPSession(page);
+    const touch = (type: "touchStart" | "touchMove" | "touchEnd", x: number, y: number) =>
+      cdp.send("Input.dispatchTouchEvent", {
+        type,
+        touchPoints: type === "touchEnd" ? [] : [{ x, y, id: 1 }],
+      });
+
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+
+    await touch("touchStart", 200, 640);
+    for (let step = 1; step <= 14; step += 1) {
+      await touch("touchMove", 200, 640 - step * 30);
+    }
+    await touch("touchEnd", 200, 220);
+
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+
+    // And the thing the scroll exists to reach is actually on screen.
+    await expect(directory(page)).toBeInViewport();
+  });
+
+  test("a horizontal drag still orbits rather than scrolling", async ({
+    page,
+    browserName,
+    context,
+  }) => {
+    // The other half of `pan-y`: giving vertical drags back to the browser
+    // must not give away the gesture that spins the island.
+    test.skip(
+      browserName !== "chromium",
+      "needs CDP touch input to exercise gesture arbitration",
+    );
+
+    await requirePark(page, browserName);
+    const cdp = await context.newCDPSession(page);
+    const touch = (type: "touchStart" | "touchMove" | "touchEnd", x: number, y: number) =>
+      cdp.send("Input.dispatchTouchEvent", {
+        type,
+        touchPoints: type === "touchEnd" ? [] : [{ x, y, id: 1 }],
+      });
+
+    const positions = () =>
+      page.$$eval(PIN_LINKS, (els) =>
+        els
+          .map((el) => (el as HTMLElement).style.getPropertyValue("--translateX"))
+          .join("|"),
+      );
+    const before = await positions();
+
+    await touch("touchStart", 200, 620);
+    for (let step = 1; step <= 12; step += 1) {
+      await touch("touchMove", 200 + step * 14, 620);
+    }
+    await touch("touchEnd", 368, 620);
+
+    await expect.poll(positions, { timeout: 4000 }).not.toBe(before);
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+  });
+});
+
+test.describe("every route's own navigation is thumb-sized", () => {
+  test.use({ viewport: { width: 393, height: 852 }, hasTouch: true });
+
+  for (const attraction of ATTRACTIONS) {
+    test(`${attraction.name} can be left again`, async ({ page }) => {
+      // `← back to the park` is the only navigation on an attraction page, so
+      // on a phone it is the control a visitor reaches for most. As a bare
+      // line of small text it measured 131x22 — half the floor the pins are
+      // held to, and under the 24px AA minimum as well, which does not exempt
+      // it because it is a standalone link and not one inside a sentence.
+      //
+      // Asserted per route rather than once, because the layout is shared and
+      // a page that stopped using it would lose this silently.
+      await page.goto(`/${attraction.slug}`);
+      const back = page.getByRole("link", { name: /back to the park/i });
+      const box = await back.boundingBox();
+      expect(box, `${attraction.slug} has no way back`).not.toBeNull();
+      expect(box!.height, `${attraction.slug} back link height`).toBeGreaterThanOrEqual(
+        MIN_TARGET,
+      );
+    });
+  }
 });
 
 test.describe("no route overflows a phone", () => {

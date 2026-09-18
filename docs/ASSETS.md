@@ -105,6 +105,25 @@ exporter mangles names outside that set, which would break the join silently.
 geometry, and a decimator would round off exactly the chamfers that keep it from
 looking like programmer art.
 
+### Why Draco and not meshopt
+
+`EXT_meshopt_compression` is the usual alternative, and it is tempting for a
+second reason: its decoder is ~20 KB against Draco's 245 KB of vendored wasm.
+Measured on the same export, with identical WebP textures, so only the geometry
+codec differs:
+
+| Geometry codec | `Park.glb` |
+| --- | --- |
+| Draco | **358,916 B** |
+| meshopt | 580,820 B |
+| quantization only | 1,160,328 B |
+
+Meshopt costs **222 KB more over the wire** than it saves in decoder bytes, on
+this park. That is the park's shape talking, not a general result: meshopt wins
+on dense, smoothly-varying meshes, and this one is 9,485 flat-shaded polygons
+with hard chamfers, which is close to Draco's best case. Re-measure before
+believing either number on a different scene; do not re-litigate it on this one.
+
 ### When to switch to KTX2
 
 WebP rather than KTX2/Basis, deliberately: KTX2 needs the external `ktx` binary

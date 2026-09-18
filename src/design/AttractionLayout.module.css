@@ -21,6 +21,21 @@
   color: var(--text-muted);
   text-decoration: none;
   justify-self: start;
+
+  /*
+   * Sized to the same touch floor as a pin, and for the same reason: this is
+   * the only navigation on an attraction page, and on a phone it is the
+   * control a visitor reaches for most. As a bare line of small text it was
+   * 22px tall — half the floor the pins are held to, and under even the
+   * 24px AA minimum, which does not exempt it because it is a standalone
+   * link rather than one inside a sentence.
+   *
+   * The box grows, not the type: `align-content` keeps the text at its
+   * original size and position within a taller target.
+   */
+  display: grid;
+  align-content: center;
+  min-height: var(--pin-hit-size);
 }
 
 @media (any-hover: hover) {

@@ -140,6 +140,39 @@ block zeroes all of them — so a component that references the tokens honours t
 preference without branching, and one that hard-codes a duration is caught by
 `tests/tokens.test.ts`.
 
+### Touch
+
+| Gesture | What it does |
+| --- | --- |
+| One finger, horizontal | Orbits the park |
+| One finger, vertical | Scrolls the page |
+| Two fingers | Zooms the camera |
+| Tap a pin | Opens that attraction |
+
+The vertical row is the one that needs stating. The park's stage is fixed and
+fills the viewport, so it is what a finger lands on everywhere on the page, and
+`OrbitControls.connect()` sets `touch-action: none` on the element it listens
+to — unconditionally. That took every drag, and since the masthead is
+`min-height: 100dvh`, the directory sits below the fold on every phone: the park
+was reachable by touch and the site underneath it was not, which is the reverse
+of what this site is.
+
+`src/park/ParkScene.tsx` sets `pan-y` back on that element after the controls
+connect. It has to be done there — the value is written inline at runtime, so
+the same property in `Park.module.css` or on the `<Canvas>` `style` prop is
+overwritten while reading as though it applied. Both were tried and removed.
+
+The polar angle is therefore not adjustable by touch. It is clamped to a
+54-degree band regardless, and azimuth is the axis that spins the island, so the
+gesture worth keeping is the one that was kept.
+
+Verified with real touch input rather than a narrow viewport. `touch-action` is
+consulted by the browser's gesture recognition, which only genuine touch
+reaches: a mouse drag never consults it and synthetic pointer events bypass it,
+so both orbit happily on a page that cannot be scrolled at all. The assertions
+in `e2e/reach.spec.ts` drive `Input.dispatchTouchEvent` through CDP and are
+chromium-only for that reason.
+
 ### Layout
 
 Page margin 80px on desktop, 16px on mobile; content capped by measure rather

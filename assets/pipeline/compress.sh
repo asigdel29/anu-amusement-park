@@ -13,6 +13,10 @@
 # cannot decode its own atlas. docs/ASSETS.md lists all three changes the
 # switch needs; make them together or not at all.
 #
+# Draco rather than meshopt, on measurement: meshopt produces a 580,820-byte
+# Park.glb against Draco's 358,916 on this export, which is 222 KB more over the
+# wire than its smaller decoder saves. See docs/ASSETS.md for the table.
+#
 # --simplify is off: the park is 9,485 polygons of deliberately flat-shaded
 # geometry, and a decimator would round off exactly the chamfers that keep it
 # from looking like programmer art.
