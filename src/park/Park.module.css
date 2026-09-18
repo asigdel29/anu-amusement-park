@@ -23,15 +23,13 @@
   /* The canvas takes drags for the orbit, so it must receive pointer events
    * even though its parent does not. */
   pointer-events: auto;
-  touch-action: none;
 
-  /* Faded in rather than popped in. The park arrives a beat after the page has
-   * already painted its content, and appearing abruptly over readable text
-   * reads as the page breaking rather than as the park loading.
-   *
-   * A full-screen loading gate was the obvious alternative and is the wrong
-   * one: it would cover a usable site to announce that a decorative layer is
-   * on its way. The content underneath is the substrate, not a placeholder. */
+  /* `touch-action` is deliberately NOT set here. R3F writes it inline on this
+   * same element, and an inline declaration beats a stylesheet one — a
+   * `touch-action` rule in this file is dead text that reads as though it
+   * were in force. It is set through the <Canvas> `style` prop in Park.tsx,
+   * which is the only place that can override R3F's default. */
+
   opacity: 0;
   transition: opacity var(--duration-fade) var(--ease-fade);
 }

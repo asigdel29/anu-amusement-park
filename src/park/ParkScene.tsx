@@ -69,6 +69,36 @@ export function ParkScene({ onReady }: { onReady: () => void }) {
   const controls = useRef<OrbitControlsImpl | null>(null);
   const { camera, size, invalidate } = useThree();
 
+  /*
+   * Hand vertical drags back to the browser.
+   *
+   * `OrbitControls.connect()` sets `domElement.style.touchAction = "none"` on
+   * whatever element it listens to, unconditionally — so this cannot be
+   * expressed in Park.module.css or in the <Canvas> `style` prop. Both are
+   * overwritten at runtime, and both read as though they were in force.
+   *
+   * `none` is wrong here because the stage is fixed and fills the viewport:
+   * that element is what a finger lands on everywhere on the page, so the
+   * controls were taking every drag and the document could not be scrolled by
+   * touch at all. The masthead is `min-height: 100dvh`, which puts the
+   * directory below the fold on every phone — so the park was reachable and
+   * the site underneath it was not. That is backwards; the directory is the
+   * substrate and the park is a layer over it.
+   *
+   * `pan-y` returns vertical drags to the browser and keeps horizontal ones
+   * for the orbit. Azimuth is the axis that spins the island, and the polar
+   * angle is clamped to a 54-degree band regardless, so little is given up.
+   * Two-finger gestures still reach the controls, because `pan-y` withholds
+   * pinch-zoom from the browser too.
+   *
+   * Runs after the controls' own effect: child effects fire before the
+   * parent's, and <OrbitControls> is a child of this component.
+   */
+  useEffect(() => {
+    const element = controls.current?.domElement as HTMLElement | undefined;
+    if (element) element.style.touchAction = "pan-y";
+  }, []);
+
   // Reused across frames. Allocating a Vector3 per pin per frame is 420
   // allocations a second, which is exactly the shape of garbage that produces
   // a periodic hitch rather than a steady cost.

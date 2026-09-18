@@ -14,6 +14,7 @@ import { ATTRACTIONS, ENTRANCE } from "../src/content/attractions";
 import {
   PIN_LAYER_ACTIVE,
   PIN_LINKS,
+  directory,
   directoryLink,
   expectDirectoryListsEveryAttraction,
   pin,
@@ -247,6 +248,92 @@ test.describe("the park can be orbited by touch", () => {
     await expect
       .poll(positions, { timeout: 4000 })
       .not.toBe(before);
+  });
+});
+
+test.describe("the page still scrolls under the park", () => {
+  test.use({ hasTouch: true, viewport: { width: 393, height: 852 } });
+
+  test("a vertical drag reaches the directory", async ({
+    page,
+    browserName,
+    context,
+  }) => {
+    // The park's stage is fixed and fills the viewport, so the controls'
+    // element is what a finger lands on everywhere on the page. OrbitControls
+    // sets `touch-action: none` on it in `connect()`, which took every drag —
+    // and since the masthead is `min-height: 100dvh`, the directory sits below
+    // the fold on every phone. The park was reachable by touch and the site
+    // underneath it was not.
+    //
+    // Chromium only: this needs real touch input, and `Input.dispatchTouchEvent`
+    // goes through the browser's gesture recognition, which is what consults
+    // `touch-action`. Playwright's own touch API can tap but not drag, and
+    // synthetic pointer events bypass arbitration entirely — under either, this
+    // assertion would pass against a page that cannot be scrolled at all.
+    test.skip(
+      browserName !== "chromium",
+      "needs CDP touch input to exercise gesture arbitration",
+    );
+
+    await requirePark(page, browserName);
+    const cdp = await context.newCDPSession(page);
+    const touch = (type: "touchStart" | "touchMove" | "touchEnd", x: number, y: number) =>
+      cdp.send("Input.dispatchTouchEvent", {
+        type,
+        touchPoints: type === "touchEnd" ? [] : [{ x, y, id: 1 }],
+      });
+
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+
+    await touch("touchStart", 200, 640);
+    for (let step = 1; step <= 14; step += 1) {
+      await touch("touchMove", 200, 640 - step * 30);
+    }
+    await touch("touchEnd", 200, 220);
+
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+
+    // And the thing the scroll exists to reach is actually on screen.
+    await expect(directory(page)).toBeInViewport();
+  });
+
+  test("a horizontal drag still orbits rather than scrolling", async ({
+    page,
+    browserName,
+    context,
+  }) => {
+    // The other half of `pan-y`: giving vertical drags back to the browser
+    // must not give away the gesture that spins the island.
+    test.skip(
+      browserName !== "chromium",
+      "needs CDP touch input to exercise gesture arbitration",
+    );
+
+    await requirePark(page, browserName);
+    const cdp = await context.newCDPSession(page);
+    const touch = (type: "touchStart" | "touchMove" | "touchEnd", x: number, y: number) =>
+      cdp.send("Input.dispatchTouchEvent", {
+        type,
+        touchPoints: type === "touchEnd" ? [] : [{ x, y, id: 1 }],
+      });
+
+    const positions = () =>
+      page.$$eval(PIN_LINKS, (els) =>
+        els
+          .map((el) => (el as HTMLElement).style.getPropertyValue("--translateX"))
+          .join("|"),
+      );
+    const before = await positions();
+
+    await touch("touchStart", 200, 620);
+    for (let step = 1; step <= 12; step += 1) {
+      await touch("touchMove", 200 + step * 14, 620);
+    }
+    await touch("touchEnd", 368, 620);
+
+    await expect.poll(positions, { timeout: 4000 }).not.toBe(before);
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
   });
 });
 
