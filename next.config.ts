@@ -17,15 +17,18 @@
 import type { NextConfig } from "next";
 
 /**
- * `unsafe-eval` is required by the Draco and KTX2 decoders, which compile their
- * WebAssembly modules at runtime. It is scoped to script-src and cannot be
- * narrowed further without dropping compressed assets entirely, which would cost
- * more than it buys. `worker-src blob:` is required for the same decoders' worker
- * pool. No other directive admits an exception.
+ * `wasm-unsafe-eval` is required by the Draco decoder, which compiles its
+ * WebAssembly module at runtime. It is the narrowest grant that admits that
+ * compile: plain `unsafe-eval` would also hand the page `eval()` and
+ * `new Function()`, which nothing here needs. The decoder's own wrapper is
+ * ordinary script served from this origin, so it needs no exception at all.
+ *
+ * `worker-src blob:` is required for the same decoder's worker pool.
+ * No other directive admits an exception.
  */
 const directives = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self'",
