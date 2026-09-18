@@ -17,13 +17,46 @@ const ROUTES = ["/", ...ATTRACTIONS.map((a) => `/${a.slug}`), `/${ENTRANCE.slug}
 /** The WCAG 2.5.5 target-size floor, and the reference's own touch size. */
 const MIN_TARGET = 44;
 
+/**
+ * Loads the park and returns its pins, skipping the test where this engine
+ * cannot render it at all.
+ *
+ * Headless Firefox on a CI runner has no WebGL, so the park correctly renders
+ * nothing there — and that exposed a worse problem than the skip. Two of the
+ * assertions below are of the form "no pin is wrong", which an empty pin set
+ * satisfies perfectly: they were passing vacuously on an engine with no park,
+ * and would have passed just as well on a park that rendered no pins at all.
+ *
+ * So this asserts the park is fully present before any of them run — a canvas
+ * and exactly one pin per attraction — or skips with the reason. A test that
+ * cannot distinguish "nothing is wrong" from "nothing is there" is not a test.
+ *
+ * The no-WebGL path is not going untested by skipping here: it has its own
+ * assertions at the bottom of this file, where WebGL is removed deliberately
+ * and the directory is required to carry the whole site.
+ */
+async function parkPins(page: import("@playwright/test").Page) {
+  await page.goto("/");
+  await page.waitForTimeout(3500);
+
+  const canvases = await page.locator("canvas").count();
+  test.skip(
+    canvases === 0,
+    "this engine has no WebGL, so the park does not mount; " +
+      "the no-WebGL path is asserted separately below",
+  );
+
+  const pins = page.locator('[class*="Pins-module"] a');
+  await expect(pins).toHaveCount(ATTRACTIONS.length);
+  return pins;
+}
+
 test.describe("the park fits its viewport", () => {
   test("shows every pin inside the frame", async ({ page }) => {
     // The camera distance is derived from the aspect ratio for this reason: a
     // constant tuned on a desktop put five of the seven pins off-screen on a
     // portrait phone, with no error anywhere.
-    await page.goto("/");
-    await page.waitForTimeout(3500);
+    await parkPins(page);
 
     const offscreen = await page.evaluate(() => {
       const pins = [...document.querySelectorAll('[class*="Pins-module"] a')];
@@ -44,8 +77,7 @@ test.describe("the park fits its viewport", () => {
   });
 
   test("gives every pin a large enough hit target", async ({ page }) => {
-    await page.goto("/");
-    await page.waitForTimeout(3500);
+    await parkPins(page);
 
     const small = await page.evaluate((floor) => {
       const pins = [...document.querySelectorAll('[class*="Pins-module"] a')];
@@ -66,8 +98,7 @@ test.describe("the park fits its viewport", () => {
     // On a narrow touch viewport the label is not drawn, because seven of them
     // do not fit. The name must still be there: a ring is an affordance, not a
     // reason for an attraction to become anonymous.
-    await page.goto("/");
-    await page.waitForTimeout(3500);
+    await parkPins(page);
 
     for (const attraction of ATTRACTIONS) {
       await expect(
