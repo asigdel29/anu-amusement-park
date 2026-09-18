@@ -27,7 +27,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
-import { Vector3 } from "three";
+import { TOUCH, Vector3 } from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { PINNED_ATTRACTIONS } from "./pinnedAttractions";
 import { ORBIT } from "./orbitRig";
@@ -44,8 +44,21 @@ import { ORBIT } from "./orbitRig";
  */
 const [TARGET_X, TARGET_Y, TARGET_Z] = ORBIT.target;
 
-/** One-finger orbit, two-finger zoom — the gesture set from every map app. */
-const TOUCHES = { ONE: 1, TWO: 2 } as const;
+/**
+ * One-finger orbit, two-finger zoom — the gesture set from every map app.
+ *
+ * Named through three's own `TOUCH` enum rather than written as the numbers
+ * they happen to equal. This was `{ ONE: 1, TWO: 2 }`, which reads like
+ * "one finger, two fingers" and is in fact `{ ONE: PAN, TWO: DOLLY_PAN }`:
+ * `TOUCH` is `{ ROTATE: 0, PAN: 1, DOLLY_PAN: 2, DOLLY_ROTATE: 3 }`. Since
+ * `ORBIT.enablePan` is false, one finger was bound to a disabled action and
+ * the park could not be orbited by touch at all — on a phone, the only way it
+ * can be orbited.
+ *
+ * Nothing caught it: the e2e suite taps pins but never drags, and the latency
+ * harness orbits with a mouse, which goes through `mouseButtons` instead.
+ */
+const TOUCHES = { ONE: TOUCH.ROTATE, TWO: TOUCH.DOLLY_PAN } as const;
 import { useParkScene } from "./useGLTFUnlit";
 import { writePinPosition } from "./pinStore";
 import { cameraPosition, isComplete, orbitAt } from "./flyTo";

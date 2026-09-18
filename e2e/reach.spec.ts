@@ -173,6 +173,83 @@ test.describe("the park fits its viewport", () => {
   });
 });
 
+test.describe("the park can be orbited by touch", () => {
+  test.use({ hasTouch: true });
+
+  test("a one-finger drag moves the camera", async ({ page, browserName }) => {
+    // The gesture this asserts is the only way to orbit the park on a phone,
+    // and it was broken for the whole of the build without a single suite
+    // noticing: `touches` was written as `{ ONE: 1, TWO: 2 }`, which reads as
+    // "one finger, two fingers" but is `{ ONE: PAN, TWO: DOLLY_PAN }` in
+    // three's `TOUCH` enum — and panning is disabled, so one finger was bound
+    // to a disabled action.
+    //
+    // Nothing else covers it. The other specs tap pins, which is a different
+    // code path entirely, and the latency harness orbits with a mouse, which
+    // OrbitControls routes through `mouseButtons` rather than `touches`.
+    await requirePark(page, browserName);
+
+    const positions = () =>
+      page.$$eval(PIN_LINKS, (els) =>
+        els
+          .map((el) => (el as HTMLElement).style.getPropertyValue("--translateX"))
+          .join("|"),
+      );
+
+    const before = await positions();
+
+    // Dispatched as pointer events with `pointerType: "touch"` rather than
+    // through `page.touchscreen`, which can tap but cannot drag. This is the
+    // branch OrbitControls takes for a finger: it reads `pointerType` on
+    // pointerdown and hands off to its touch handlers.
+    await page.evaluate(() => {
+      const canvas = document.querySelector("canvas");
+      if (!canvas) throw new Error("no canvas to drag");
+      const at = (x: number) =>
+        new PointerEvent("pointermove", {
+          pointerId: 1,
+          pointerType: "touch",
+          isPrimary: true,
+          clientX: x,
+          clientY: Math.round(window.innerHeight * 0.45),
+          bubbles: true,
+          cancelable: true,
+        });
+
+      canvas.dispatchEvent(
+        new PointerEvent("pointerdown", {
+          pointerId: 1,
+          pointerType: "touch",
+          isPrimary: true,
+          clientX: 120,
+          clientY: Math.round(window.innerHeight * 0.45),
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+      for (let step = 1; step <= 12; step += 1) {
+        canvas.dispatchEvent(at(120 + step * 15));
+      }
+      canvas.dispatchEvent(
+        new PointerEvent("pointerup", {
+          pointerId: 1,
+          pointerType: "touch",
+          isPrimary: true,
+          clientX: 300,
+          clientY: Math.round(window.innerHeight * 0.45),
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    });
+
+    // The damping tail keeps rendering for a few frames after the finger lifts.
+    await expect
+      .poll(positions, { timeout: 4000 })
+      .not.toBe(before);
+  });
+});
+
 test.describe("no route overflows a phone", () => {
   // A narrow viewport rather than a full device descriptor: a descriptor
   // carries `defaultBrowserType`, which Playwright refuses inside a describe
