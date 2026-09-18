@@ -13,16 +13,24 @@
  */
 
 import { ParkDirectory } from "@/design/ParkDirectory";
+import { ParkMount } from "@/park/ParkMount";
 import styles from "./page.module.css";
 
 export default function ParkPage() {
   return (
-    <main id="main" className={styles.page}>
-      <header className={styles.masthead}>
-        <h1>debugging reality</h1>
-        <p className={styles.subtitle}>rides may break in production</p>
-      </header>
-      <ParkDirectory />
-    </main>
+    <>
+      {/* The 3D layer. Mounts over the content below and renders nothing at all
+          where WebGL is unavailable, which leaves the page exactly as it is
+          here — complete, not degraded. */}
+      <ParkMount />
+
+      <main id="main" className={styles.page}>
+        <header className={styles.masthead}>
+          <h1>debugging reality</h1>
+          <p className={styles.subtitle}>rides may break in production</p>
+        </header>
+        <ParkDirectory />
+      </main>
+    </>
   );
 }

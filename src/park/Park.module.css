@@ -1,0 +1,38 @@
+/*
+ * The park's stage: the canvas and the pin layer that sits over it.
+ *
+ * Fixed rather than absolute. The park is a backdrop for the whole viewport and
+ * must not scroll with the directory rendered underneath it — a canvas that
+ * scrolled away would leave the pins pointing at nothing.
+ */
+
+.stage {
+  position: fixed;
+  inset: 0;
+  /* Below the page's own content, which is what a visitor falls back to. The
+   * pin layer lifts itself above this within the stage. */
+  z-index: 1;
+  /* The stage itself catches nothing; the canvas and the pins opt in. */
+  pointer-events: none;
+}
+
+.canvas {
+  /* The canvas takes drags for the orbit, so it must receive pointer events
+   * even though its parent does not. */
+  pointer-events: auto;
+  touch-action: none;
+
+  /* Faded in rather than popped in. The park arrives a beat after the page has
+   * already painted its content, and appearing abruptly over readable text
+   * reads as the page breaking rather than as the park loading.
+   *
+   * A full-screen loading gate was the obvious alternative and is the wrong
+   * one: it would cover a usable site to announce that a decorative layer is
+   * on its way. The content underneath is the substrate, not a placeholder. */
+  opacity: 0;
+  transition: opacity var(--duration-fade) var(--ease-fade);
+}
+
+.stage.ready .canvas {
+  opacity: 1;
+}

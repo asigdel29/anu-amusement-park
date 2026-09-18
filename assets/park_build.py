@@ -294,11 +294,21 @@ def build_plate(material_top, material_cliff):
     top_faces = list(bm.faces)
     bmesh.ops.solidify(bm, geom=top_faces, thickness=-PLATE_DEPTH)
 
-    # Solidify extrudes along the face normals, so which side of the original
-    # ring becomes the top depends on their winding rather than on the sign of
-    # `thickness`. Rather than assume, measure and shift: the walkable surface
-    # must end up exactly at PLATE_TOP_Z, because every structure, floor and
-    # path segment in the park is positioned against it.
+    # Solidify inverts the original face's winding, which left the plate
+    # inside-out: the face at the top surface pointed down and took the dark
+    # cliff material, while the ground material ended up on the underside. It
+    # baked black twice over — dark colour, and in shadow because its normal
+    # faced away from the light.
+    #
+    # The plate is a closed solid, so its outward orientation is unambiguous
+    # and can be computed rather than assumed. Recalculating is robust to
+    # whichever direction solidify happens to choose, which a sign flip on
+    # `thickness` would not be.
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+
+    # Solidify's direction also decides where the geometry ends up, so measure
+    # and shift: the walkable surface must land exactly at PLATE_TOP_Z, because
+    # every structure, floor and path segment is positioned against it.
     highest = max(v.co.z for v in bm.verts)
     bmesh.ops.translate(bm, verts=bm.verts, vec=(0.0, 0.0, PLATE_TOP_Z - highest))
 

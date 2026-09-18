@@ -28,6 +28,21 @@
  * be worse.
  */
 
+import pins from "../../assets/pipeline/pins.json";
+
+/**
+ * Where the orbit camera pivots, in the runtime's Y-up metres.
+ *
+ * Slightly above the plate rather than on it, so the park sits in the lower two
+ * thirds of frame — the reference's composition, and it leaves room above the
+ * skyline for the pin labels. Declared here because both the camera rig and the
+ * fly-to tween need it and neither owns it.
+ */
+export const ORBIT_TARGET: readonly [number, number, number] = [0, 3, 0];
+
+/** A pin's world position, as written by the Blender export. */
+export type PinPosition = readonly [number, number, number];
+
 /** A token name from src/design/tokens.css, without the `--` prefix. */
 export type AccentToken =
   | "neon-pink"
@@ -138,3 +153,39 @@ export function attractionBySlug(slug: string): Attraction {
   }
   return found;
 }
+
+/**
+ * An attraction together with the world position its pin hovers at.
+ *
+ * Positions are read from `assets/pipeline/pins.json`, which the Blender export
+ * writes — they are never declared in TypeScript. See docs/ASSETS.md: numbers
+ * flow one direction, Blender to JSON to the application, because a position
+ * typed in by hand would put the pin where no geometry is.
+ */
+export interface PinnedAttraction extends Attraction {
+  readonly position: PinPosition;
+}
+
+/**
+ * Every attraction with its pin position, for the park's pin layer.
+ *
+ * Throws on a missing position rather than defaulting to the origin. An
+ * attraction whose Empty was renamed in Blender would otherwise put its pin at
+ * the centre of the park, stacked under the ferris wheel — which presents as a
+ * styling bug and is actually a broken export.
+ */
+export const PINNED_ATTRACTIONS: readonly PinnedAttraction[] = ATTRACTIONS.map(
+  (attraction) => {
+    const position = (pins as Record<string, number[]>)[attraction.id];
+    if (!position || position.length !== 3) {
+      throw new Error(
+        `no pin position for ${attraction.id} in assets/pipeline/pins.json; ` +
+          "re-run `npm run assets:export` after changing assets/park_build.py",
+      );
+    }
+    return {
+      ...attraction,
+      position: [position[0], position[1], position[2]] as PinPosition,
+    };
+  },
+);

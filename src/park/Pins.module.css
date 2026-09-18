@@ -1,0 +1,154 @@
+/*
+ * Pin layer styling, following the reference's own arrangement closely.
+ *
+ * The positioning contract: `pinStore` writes `--translateX`, `--translateY`
+ * and `--visible` onto each pin element every frame. The transform lives here,
+ * in the stylesheet, so the design system can see it — the render loop only
+ * supplies numbers.
+ *
+ * `--visible` drives opacity and scale together, so revealing a pin is a single
+ * property write rather than two.
+ */
+
+.layer {
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  opacity: 0;
+  /* Inert until the scene has loaded. Without this a visitor can click a pin
+   * that is still at its unprojected origin position. */
+  pointer-events: none;
+  transition: opacity var(--duration-fade) var(--ease-default);
+}
+
+.layer.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.pin {
+  --visible: 0;
+  --translateX: 0px;
+  --translateY: 0px;
+
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform: translate(-50%, -50%)
+    translate3d(var(--translateX), var(--translateY), 0);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  /* The WCAG 2.5.5 target-size floor, and the reference's touch size. The ring
+   * inside may be drawn smaller; the anchor itself never is. */
+  min-width: var(--pin-hit-size);
+  min-height: var(--pin-hit-size);
+  padding: 0 0.5rem;
+  text-decoration: none;
+  cursor: pointer;
+  opacity: var(--visible);
+  scale: var(--visible);
+  will-change: transform;
+}
+
+/* The pop-in. Overshoots, staggered per pin, and inert under reduced motion
+ * because --duration-pop and --stagger-pin are both zeroed there. */
+.layer.active .pin {
+  transition:
+    scale var(--duration-pop) var(--ease-overshoot) var(--delay),
+    opacity var(--duration-fade) var(--ease-fade) var(--delay);
+}
+
+/* An idle pin is a small hollow ring; hover or focus expands it into a
+ * labelled pill. Straight from the reference's interaction contract. */
+.ring {
+  flex: none;
+  width: 1.125rem;
+  height: 1.125rem;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  box-shadow: 0 0 0.75rem color-mix(in srgb, var(--accent) 55%, transparent);
+  transition: all var(--duration-fade) var(--ease-default);
+}
+
+.label {
+  /* Clipped rather than removed from the document: the text stays available to
+   * a screen reader, to in-page search, and to a crawler at all times. Only
+   * its visual presentation is conditional. */
+  max-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  opacity: 0;
+  font-family: var(--font-display);
+  font-weight: var(--weight-display);
+  font-size: var(--body-sm);
+  letter-spacing: var(--tracking-body);
+  color: var(--text-primary);
+  transition:
+    max-width var(--duration-fade) var(--ease-default),
+    opacity var(--duration-fade) var(--ease-fade);
+}
+
+.note {
+  color: var(--text-muted);
+  font-family: var(--font-body);
+  font-weight: var(--weight-body);
+}
+
+/* Expanded state. Focus is included and not an afterthought: it is the entire
+ * keyboard path through the park. */
+.pin:focus-visible .label {
+  max-width: 18rem;
+  opacity: 1;
+}
+
+.pin:focus-visible .ring {
+  background: var(--accent);
+  scale: 1.15;
+}
+
+.pin:focus-visible {
+  background: var(--surface-panel);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-pill);
+  outline: 2px solid var(--neon-mint);
+  outline-offset: 3px;
+}
+
+/* Hover is gated so a touch device never inherits a hover-only path — which is
+ * what keeps these usable on a phone, where the label must appear without a
+ * hover that never happens. */
+@media (any-hover: hover) {
+  .pin:hover .label {
+    max-width: 18rem;
+    opacity: 1;
+  }
+
+  .pin:hover .ring {
+    background: var(--accent);
+    scale: 1.15;
+  }
+
+  .pin:hover {
+    background: var(--surface-panel);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius-pill);
+  }
+}
+
+/* On a touch device there is no hover, so labels are always shown. A pin whose
+ * name only appears on a gesture the device cannot perform is an unlabelled
+ * dot — the reference's one real weakness on mobile. */
+@media (hover: none) {
+  .label {
+    max-width: 18rem;
+    opacity: 1;
+  }
+
+  .pin {
+    background: color-mix(in srgb, var(--surface-panel) 85%, transparent);
+    border: 1px solid var(--surface-hairline);
+    border-radius: var(--radius-pill);
+  }
+}

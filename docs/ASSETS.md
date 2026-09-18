@@ -119,8 +119,14 @@ a quarter.
 
 22 MB for one texture is real but survivable on the phones this park targets.
 Switch when the perf harness shows memory pressure on a mid-tier device, or if
-the atlas is ever raised above 2048². `src/park/useGLTFUnlit.ts` already wires a
-self-hosted `KTX2Loader`, so it is a pipeline change and not an application one.
+the atlas is ever raised above 2048².
+
+Making that switch is three changes: add `--texture-compress ktx2` to
+`compress.sh` (which needs the `ktx` binary on PATH), vendor
+`basis_transcoder.{js,wasm}` from `three/examples/jsm/libs/basis/` into
+`public/basis/`, and wire a `KTX2Loader` in `src/park/useGLTFUnlit.ts`. The
+transcoder is 585 KB and is deliberately **not** vendored today, because a
+decoder for a format nothing ships is 585 KB of dead weight in `public/`.
 
 ### Backface culling
 
@@ -130,10 +136,10 @@ every polygon in a closed, opaque island — doubling fragment work for geometry
 no camera angle can see the back of. The orbit rig never goes below the water
 line.
 
-Both the Draco and the KTX2 decoders are **vendored** under `public/draco/` and
-`public/basis/` rather than loaded from a CDN. That is what lets
-`next.config.ts` keep `connect-src 'self'` with no exception — see the CSP
-invariants there.
+The Draco decoder is **vendored** under `public/draco/` rather than loaded from
+the gstatic CDN that three.js defaults to. That is what lets `next.config.ts`
+keep `connect-src 'self'` with no exception — see the CSP invariants there. A
+KTX2 transcoder would be vendored the same way, for the same reason.
 
 ## Budgets
 

@@ -29,7 +29,11 @@ const directives = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self'",
-  "connect-src 'self'",
+  // `blob:` is required by GLTFLoader, which extracts the park's embedded
+  // texture into a blob URL and fetches it. The blob is created by this
+  // document from bytes it already has, so this admits no new origin — a
+  // `blob:` URL cannot be minted by anyone but the page itself.
+  "connect-src 'self' blob:",
   "worker-src 'self' blob:",
   "object-src 'none'",
   "base-uri 'self'",
