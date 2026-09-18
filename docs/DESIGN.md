@@ -163,19 +163,50 @@ including with `javaScriptEnabled: false`.
 
 ## Budgets
 
-Committed numbers, enforced by `npm run size` and `npm run test:perf`. They are
-derived from what the reference site itself ships.
+Committed numbers, enforced by `npm run size` and `npm run test:perf`.
 
-| Metric | Budget | Now |
+All latency figures are measured on one stated profile — **4x CPU throttling,
+1.6 Mbps down, 150ms RTT, 390x844** — because a latency budget without the
+profile it was measured on is a number with no meaning. `npm run test:perf`
+applies it and asserts every row.
+
+| Metric | Budget | Measured |
 | --- | --- | --- |
-| Baked park payload (geometry + embedded atlas) | ≤ 1.5 MB | 350 KB |
-| Client JavaScript, gzipped | ≤ 600 KB | 173 KB |
-| Content route LCP, throttled mid-tier mobile | ≤ 1.5 s | — |
-| Park first-interactive, same profile | ≤ 3.5 s | — |
-| Steady-state frame time, mid-tier mobile | ≤ 16.7 ms p95 | — |
+| Baked park payload (geometry + embedded atlas) | ≤ 1.5 MB | 372 KB |
+| Client JavaScript, gzipped | ≤ 600 KB | 438 KB |
+| Content route LCP | ≤ 1.5 s | 0.51–0.58 s |
+| Content route CLS | ≤ 0.1 | 0.000–0.015 |
+| Park first-interactive | ≤ 6.5 s | 5.77 s |
+| Park frame time, p95, under a scripted orbit | ≤ 20 ms | 16.8 ms |
+| Park dropped frames | ≤ 5 % | 0 % |
 
-Changing a budget means changing it in this table and in
-`scripts/checkBundleSize.mjs` together, with the measurement that justifies it.
+Two of these budgets were revised after the first measurement, and both
+revisions are recorded in `perf/run.mjs` with the attempts that preceded them.
+
+**Frame time: 16.7 ms → 20 ms.** The original was unmeetable by definition.
+`requestAnimationFrame` is capped at the display's refresh rate, so a perfectly
+smooth run on a 60 Hz display reports intervals of exactly 16.7 ms — the first
+run came in at 16.7 ms against a 16.7 ms budget and failed. The budget was
+describing the cap rather than the park's headroom. A dropped-frame ratio was
+added alongside it, because a p95 sitting at the cap says nothing about whether
+the remaining 5 % were catastrophic.
+
+**Park first-interactive: 3.5 s → 6.5 s.** The park's cost is transfer, and at
+200 KB/s the payload floor is about 5.4 s — three.js alone is 256 KB gzipped and
+is the 3D engine. 3.5 s was not achievable by any version of this site that had
+a 3D park in it. Three reductions were measured before the budget moved:
+preloading the model in parallel with its JavaScript (a real fault, fixed,
+6.37 s → 5.77 s); dropping Draco to save its 251 KB decoder (rejected — the
+geometry triples to 1,173 KB, so Draco is 550 KB ahead including the decoder);
+and halving the atlas (rejected — visibly worse, see `docs/ASSETS.md`).
+
+The number that matters for a reader is the content LCP, at roughly 0.55 s. The
+park is an optional layer over a site that is already fast, which is what the
+substrate design was for.
+
+Changing a budget means changing it in this table and in the gate that enforces
+it — `scripts/checkBundleSize.mjs` or `perf/run.mjs` — together, with the
+measurement that justifies it.
 
 ## Decisions taken, and what they rule out
 
@@ -194,3 +225,33 @@ Changing a budget means changing it in this table and in
   every island. An attraction without content gets a page that admits it.
   Hiding the pin would make the park smaller than the map; inventing content
   would be worse.
+
+## Screenshot regression, and why it is not in CI
+
+`npm run test:regression` compares the park at three fixed camera poses and
+every content route against committed baselines. It exists for one failure mode
+nothing else can see: **a re-bake is a visual change even when no geometry
+moved**, because all of the park's lighting is pixels in a texture.
+
+It runs deliberately, on one platform, and is not part of the CI gate. A WebGL
+render is not portable — the same scene and the same browser produce different
+pixels on a Mac's GPU and on a runner's software rasteriser. Baselines are
+per-platform (Playwright suffixes them `-darwin`/`-linux`) and are generated
+where they are checked.
+
+Its tolerances were calibrated by measurement, in both directions, because the
+first two attempts were each useless in a different way:
+
+| | Pixels differing |
+| --- | --- |
+| Run-to-run noise, same bake | 3–4 % |
+| A 21 % brighter bake light | 9 % |
+| A 53 % brighter bake light | 15–34 % |
+
+Playwright's default per-pixel `threshold` of 0.2 is so loose that the 53 %
+change moved no single pixel enough to count and the suite passed everything —
+a gate that cannot fail manufactures confidence. Tightened to 0.02 it caught
+the change but began failing on its own noise. The park therefore runs at a 6 %
+pixel-ratio tolerance, above its measured noise and below the smallest change
+worth catching, while the pages run at 1 % because DOM output has no comparable
+noise floor.

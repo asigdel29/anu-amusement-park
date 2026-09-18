@@ -63,10 +63,17 @@ import bpy
 
 # --------------------------------------------------------------------------- config
 
-#: Resolution of the baked atlas. 2048 holds the whole park: it is 1,734
-#: polygons over a 60m island, so texel density is generous even at this size.
-#: Raising it is the first thing to try if the bake looks soft, and the first
-#: thing to lower if the texture budget is exceeded.
+#: Resolution of the baked atlas.
+#:
+#: 1024 was tried and reverted. It saves 120 KB, which is about 0.6s of
+#: transfer on the perf harness's profile, and it is visibly worse: the ferris
+#: wheel's thin spokes thicken into black bars, the midway's paving gains dark
+#: seams, and the library dome mottles. The park is 9,485 polygons spread over
+#: a 60m island, so its texel density is the binding constraint on fine detail
+#: rather than its polygon count — the spokes are geometry one pixel wide in
+#: the atlas.
+#:
+#: Raise this if the bake looks soft; it is not the place to look for bytes.
 ATLAS_SIZE = 2048
 
 #: Cycles samples per texel. The scene is flat-shaded with soft fill, so it

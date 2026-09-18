@@ -24,9 +24,9 @@
 import { useMemo } from "react";
 import { useGLTF } from "@react-three/drei";
 import { applyUnlitMaterials } from "./convertMaterial";
+import { PARK_MODEL_URL } from "./modelUrl";
 
-/** Path of the baked park, relative to the site root. */
-export const PARK_MODEL_URL = "/models/park/Park.glb";
+export { PARK_MODEL_URL };
 
 /** Where the vendored Draco decoder lives. Must end in a slash. */
 const DRACO_DECODER_PATH = "/draco/";

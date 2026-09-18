@@ -14,11 +14,27 @@
 
 import { ParkDirectory } from "@/design/ParkDirectory";
 import { ParkMount } from "@/park/ParkMount";
+import { PARK_MODEL_URL } from "@/park/modelUrl";
 import styles from "./page.module.css";
 
 export default function ParkPage() {
   return (
     <>
+      {/*
+        Start the park's model downloading now, in parallel with its
+        JavaScript, rather than after it.
+
+        Without this the sequence is serial: the R3F chunk downloads, parses,
+        mounts, and only then asks for the 363 KB model. On a throttled
+        mid-tier phone that measured 6.4s to first-interactive against a 3.5s
+        budget, almost all of it transfer rather than work.
+
+        Only on this route. The content pages never load the park, so
+        preloading it there would spend a visitor's bandwidth on bytes that
+        page has no use for.
+      */}
+      <link rel="preload" href={PARK_MODEL_URL} as="fetch" crossOrigin="anonymous" />
+
       {/* The 3D layer. Mounts over the content below and renders nothing at all
           where WebGL is unavailable, which leaves the page exactly as it is
           here — complete, not degraded. */}
