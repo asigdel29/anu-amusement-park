@@ -20,15 +20,25 @@ import type { NextConfig } from "next";
  * `wasm-unsafe-eval` is required by the Draco decoder, which compiles its
  * WebAssembly module at runtime. It is the narrowest grant that admits that
  * compile: plain `unsafe-eval` would also hand the page `eval()` and
- * `new Function()`, which nothing here needs. The decoder's own wrapper is
- * ordinary script served from this origin, so it needs no exception at all.
+ * `new Function()`, which nothing this site ships uses.
+ *
+ * `next dev` is the exception, and only it. The Turbopack dev runtime evaluates
+ * the React server-components payload with `eval`, so a dev server under the
+ * shipped policy logs "eval() is not supported in this environment" and loses
+ * the dev runtime — while still rendering enough of the page to look fine,
+ * which is how this would go unnoticed. Every gate in this repo runs against
+ * `next start`, so no suite covers the dev server; this line is the only thing
+ * standing between the narrow grant and a broken local workflow.
  *
  * `worker-src blob:` is required for the same decoder's worker pool.
  * No other directive admits an exception.
  */
+const EVAL_GRANT =
+  process.env.NODE_ENV === "development" ? "'unsafe-eval'" : "'wasm-unsafe-eval'";
+
 const directives = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'",
+  `script-src 'self' 'unsafe-inline' ${EVAL_GRANT}`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self'",
