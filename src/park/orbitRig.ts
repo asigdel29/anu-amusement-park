@@ -37,11 +37,16 @@ export const ORBIT = {
    *
    * The minimum keeps the camera outside the ferris wheel at the park's centre,
    * which is 8.5m in radius and 19m tall — closer than this and the wheel
-   * clips through the near plane. The maximum is where the island stops filling
-   * the frame and starts being a small object in a large void.
+   * clips through the near plane.
+   *
+   * The maximum is deliberately generous, because how far back the camera must
+   * sit to see the whole park depends on the viewport's aspect ratio and not on
+   * the park. A portrait phone needs roughly three times the distance a desktop
+   * does for the same island — see `fitDistance`. A single tuned-for-desktop
+   * maximum cropped the park badly on a phone.
    */
   minDistance: 26,
-  maxDistance: 96,
+  maxDistance: 260,
 
   /** Where the orbit pivots. Slightly above the plate, so the park sits in the
    * lower two thirds of frame rather than dead centre — the reference's
@@ -123,4 +128,46 @@ export function azimuthToward(
   const dz = z - ORBIT.target[2];
   if (Math.abs(dx) < 1e-6 && Math.abs(dz) < 1e-6) return currentAzimuth;
   return Math.atan2(dx, dz);
+}
+
+/**
+ * Radius of the smallest sphere at the park's centre containing the whole park,
+ * in metres.
+ *
+ * The plate is PLATE_RADIUS 30 in `assets/park_build.py`, and its rim is
+ * displaced outward by up to ~17% by the wobble that makes it read as a
+ * landmass rather than a coin. Rounded up, with the launch tower's height
+ * folded in.
+ */
+export const PARK_RADIUS = 36;
+
+/**
+ * The orbit distance at which the whole park fits the frame.
+ *
+ * This is the fix for a park that was framed on a desktop and then cropped to
+ * its centre on a phone. The binding constraint is the *horizontal* field of
+ * view, which a vertical `fov` only determines once the aspect ratio is known:
+ *
+ *     tan(hfov / 2) = aspect * tan(vfov / 2)
+ *
+ * A portrait phone has an aspect around 0.46 against a desktop's 1.4, so it
+ * needs roughly three times the distance to see the same island. Deriving it
+ * is the only way one scene serves both; a tuned constant cannot.
+ *
+ * `margin` leaves the park short of the frame edges, because an island exactly
+ * filling the viewport reads as cropped whether it is or not.
+ */
+export function fitDistance(
+  aspect: number,
+  fovDegrees: number,
+  margin = 1.15,
+): number {
+  // A zero or non-finite aspect comes from a viewport that has not been measured
+  // yet. Falling back to 1 gives a usable framing for one frame rather than an
+  // infinite distance and a blank canvas.
+  const safeAspect = Number.isFinite(aspect) && aspect > 0 ? aspect : 1;
+  const halfVertical = (fovDegrees * Math.PI) / 360;
+  const halfHorizontal = Math.atan(safeAspect * Math.tan(halfVertical));
+  const needed = (PARK_RADIUS * margin) / Math.tan(halfHorizontal);
+  return clampDistance(needed);
 }

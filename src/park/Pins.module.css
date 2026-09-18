@@ -143,10 +143,20 @@
   }
 }
 
-/* On a touch device there is no hover, so labels are always shown. A pin whose
- * name only appears on a gesture the device cannot perform is an unlabelled
- * dot — the reference's one real weakness on mobile. */
-@media (hover: none) {
+/*
+ * On a touch device there is no hover, so a label cannot be revealed by one.
+ * Showing all seven at once was the first attempt and was worse: on a 390px
+ * viewport the labels overlapped each other, ran off both edges, and collided
+ * with the site's own title. Seven always-on labels do not fit a phone.
+ *
+ * So on a wide touch device — a tablet — labels stay on, and on a narrow one
+ * the ring stands alone, drawn larger to be an easier target. Nothing is
+ * actually unlabelled there: the pin's accessible name is still the
+ * attraction's, so a screen reader reads it, and the fully-labelled directory
+ * is immediately below the park on the same page. The ring is an affordance,
+ * not the only signpost.
+ */
+@media (hover: none) and (min-width: 768px) {
   .label {
     max-width: 18rem;
     opacity: 1;
@@ -156,5 +166,13 @@
     background: color-mix(in srgb, var(--surface-panel) 85%, transparent);
     border: 1px solid var(--surface-hairline);
     border-radius: var(--radius-pill);
+  }
+}
+
+@media (hover: none) and (max-width: 767px) {
+  .ring {
+    width: 1.5rem;
+    height: 1.5rem;
+    border-width: 3px;
   }
 }

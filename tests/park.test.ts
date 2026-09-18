@@ -16,9 +16,11 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   ORBIT,
+  PARK_RADIUS,
   azimuthToward,
   clampDistance,
   clampPolar,
+  fitDistance,
   orbitPosition,
 } from "@/park/orbitRig";
 import {
@@ -307,5 +309,57 @@ describe("the flight store", () => {
 
   it("returns null when nothing is in flight", () => {
     expect(completeFlight()).toBeNull();
+  });
+});
+
+describe("framing the park to a viewport", () => {
+  const FOV = 40;
+
+  it("needs far more distance on a portrait phone than on a desktop", () => {
+    // The binding constraint is the horizontal field of view, which a vertical
+    // fov only determines once the aspect is known. A constant tuned on a
+    // desktop cropped the park to its centre on a phone, with no error.
+    const phone = fitDistance(390 / 844, FOV);
+    const desktop = fitDistance(1280 / 900, FOV);
+    expect(phone).toBeGreaterThan(desktop * 2);
+  });
+
+  it("actually fits the park at the distance it returns", () => {
+    // The property that matters, asserted directly rather than trusting the
+    // algebra: at the returned distance, the park's bounding radius is inside
+    // the horizontal half-width of the frustum.
+    for (const aspect of [0.4, 0.46, 0.75, 1, 1.42, 2.2, 3]) {
+      const distance = fitDistance(aspect, FOV);
+      const halfHorizontal = Math.atan(
+        aspect * Math.tan((FOV * Math.PI) / 360),
+      );
+      const halfWidth = distance * Math.tan(halfHorizontal);
+      expect(halfWidth, `aspect ${aspect}`).toBeGreaterThanOrEqual(PARK_RADIUS);
+    }
+  });
+
+  it("stays inside the orbit bounds at every aspect", () => {
+    for (const aspect of [0.2, 0.46, 1, 1.42, 4, 10]) {
+      const distance = fitDistance(aspect, FOV);
+      expect(distance).toBeGreaterThanOrEqual(ORBIT.minDistance);
+      expect(distance).toBeLessThanOrEqual(ORBIT.maxDistance);
+    }
+  });
+
+  it("gives a usable framing for an unmeasured viewport", () => {
+    // A zero or non-finite aspect comes from a viewport that has not been
+    // measured yet. An infinite distance would blank the canvas for a frame.
+    for (const bad of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
+      const distance = fitDistance(bad, FOV);
+      expect(Number.isFinite(distance), `aspect ${bad}`).toBe(true);
+      expect(distance).toBeGreaterThanOrEqual(ORBIT.minDistance);
+    }
+  });
+
+  it("can orbit out far enough for the widest framing it produces", () => {
+    // The maximum was raised for this reason: a portrait phone needs roughly
+    // three times a desktop's distance, and a desktop-tuned maximum clamped
+    // the phone's framing back into a crop.
+    expect(ORBIT.maxDistance).toBeGreaterThanOrEqual(fitDistance(0.4, FOV));
   });
 });

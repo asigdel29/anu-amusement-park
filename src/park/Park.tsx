@@ -28,7 +28,7 @@ import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Canvas } from "@react-three/fiber";
 import { PINNED_ATTRACTIONS, type PinnedAttraction } from "@/content/attractions";
-import { ORBIT } from "./orbitRig";
+import { ORBIT, fitDistance } from "./orbitRig";
 import { cameraPosition, flightPlan } from "./flyTo";
 import { ParkScene } from "./ParkScene";
 import { startFlight } from "./flightStore";
@@ -36,8 +36,21 @@ import { Pins } from "./Pins";
 import { pixelRatioRange, supportsWebGL } from "./capability";
 import styles from "./Park.module.css";
 
-/** The orbit the park opens on: the pose the Blender camera is set to. */
-const INITIAL_ORBIT = { azimuth: 0, polar: 0.95, distance: 88 };
+/** Vertical field of view, in degrees. Shared with `fitDistance`. */
+const FOV = 40;
+
+/**
+ * The orbit the park opens on.
+ *
+ * The distance is derived from the viewport rather than fixed, because how far
+ * back the camera must sit to frame the park depends on the aspect ratio. A
+ * constant tuned on a desktop cropped the island to its centre on a phone.
+ */
+function initialOrbit(): { azimuth: number; polar: number; distance: number } {
+  const aspect =
+    typeof window === "undefined" ? 1 : window.innerWidth / window.innerHeight;
+  return { azimuth: 0, polar: 0.95, distance: fitDistance(aspect, FOV) };
+}
 
 /**
  * Reads a duration token from the document, in milliseconds.
@@ -61,6 +74,11 @@ function durationToken(name: string, fallback: number): number {
 export function Park() {
   const router = useRouter();
   const [ready, setReady] = useState(false);
+  // Measured once, at mount. The park does not reframe itself on a resize:
+  // re-deriving the distance mid-session would yank the camera away from
+  // wherever the visitor had put it, which is worse than a rotation leaving
+  // the park slightly small until the next visit.
+  const [orbit] = useState(initialOrbit);
 
   // Probed once, in the state initializer rather than in an effect. This module
   // is only ever loaded through `ParkMount`, which imports it with `ssr: false`,
@@ -87,11 +105,11 @@ export function Park() {
         return;
       }
 
-      startFlight(flightPlan(INITIAL_ORBIT, attraction.position, duration), () =>
+      startFlight(flightPlan(orbit, attraction.position, duration), () =>
         router.push(href),
       );
     },
-    [router],
+    [router, orbit],
   );
 
   const onReady = useCallback(() => setReady(true), []);
@@ -112,10 +130,12 @@ export function Park() {
         // slightly-different black of its own.
         gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
         camera={{
-          fov: 40,
+          fov: FOV,
           near: 1,
-          far: 400,
-          position: cameraPosition(INITIAL_ORBIT),
+          // Far enough to keep the water plane in view at the greatest orbit
+          // distance a portrait phone needs.
+          far: 900,
+          position: cameraPosition(orbit),
         }}
         onCreated={({ camera }) => camera.lookAt(...ORBIT.target)}
       >
