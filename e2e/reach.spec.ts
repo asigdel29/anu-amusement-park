@@ -9,7 +9,7 @@
  * neither produced an error.
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { ATTRACTIONS, ENTRANCE } from "../src/content/attractions";
 
 const ROUTES = ["/", ...ATTRACTIONS.map((a) => `/${a.slug}`), `/${ENTRANCE.slug}`];
@@ -18,45 +18,97 @@ const ROUTES = ["/", ...ATTRACTIONS.map((a) => `/${a.slug}`), `/${ENTRANCE.slug}
 const MIN_TARGET = 44;
 
 /**
- * Loads the park and returns its pins, skipping the test where this engine
- * cannot render it at all.
+ * Loads the park and requires it to be fully present, or skips on an engine
+ * that genuinely cannot render it.
  *
- * Headless Firefox on a CI runner has no WebGL, so the park correctly renders
- * nothing there — and that exposed a worse problem than the skip. Two of the
- * assertions below are of the form "no pin is wrong", which an empty pin set
- * satisfies perfectly: they were passing vacuously on an engine with no park,
- * and would have passed just as well on a park that rendered no pins at all.
+ * Two of the assertions below are of the form "no pin is wrong", which an
+ * empty pin set satisfies perfectly. On headless Firefox, which has no WebGL on
+ * a CI runner, they were passing vacuously — and would have passed just as
+ * well on a park that rendered no pins at all.
  *
- * So this asserts the park is fully present before any of them run — a canvas
- * and exactly one pin per attraction — or skips with the reason. A test that
- * cannot distinguish "nothing is wrong" from "nothing is there" is not a test.
+ * The first fix keyed the skip on `canvas` being absent, which relocated the
+ * same fault rather than removing it: a park broken on a *capable* engine also
+ * renders no canvas, so a renamed Empty in `assets/park_build.py` — which makes
+ * `PINNED_ATTRACTIONS` throw at module evaluation and takes the whole dynamic
+ * import down with it — would have skipped silently on chromium and reported
+ * green.
  *
- * The no-WebGL path is not going untested by skipping here: it has its own
- * assertions at the bottom of this file, where WebGL is removed deliberately
- * and the directory is required to carry the whole site.
+ * So the skip is keyed on the engine's *capability*, probed directly, and never
+ * on the outcome the tests exist to check. An engine with WebGL must produce
+ * exactly one canvas and one pin per attraction, or these fail.
+ *
+ * Chromium is held to a stronger standard still: it has WebGL in every
+ * environment this project runs in, so its absence there is a broken
+ * environment rather than a platform fact, and it fails instead of skipping.
+ * Without that, all four projects could take the skip at once and the run would
+ * report twelve skips and a green tick — the same inability to tell "nothing is
+ * wrong" from "nothing is there", moved from the assertion to the gate.
+ *
+ * Skipping costs the no-WebGL path no coverage: it has its own assertions at
+ * the bottom of this file, where WebGL is removed deliberately before any
+ * script runs and the directory is required to carry the whole site.
  */
-async function parkPins(page: import("@playwright/test").Page) {
+async function requirePark(page: Page, browserName: string) {
   await page.goto("/");
-  await page.waitForTimeout(3500);
 
-  const canvases = await page.locator("canvas").count();
-  test.skip(
-    canvases === 0,
-    "this engine has no WebGL, so the park does not mount; " +
-      "the no-WebGL path is asserted separately below",
+  const hasWebGL = await page.evaluate(() => {
+    try {
+      return !!document.createElement("canvas").getContext("webgl2");
+    } catch {
+      return false;
+    }
+  });
+
+  if (!hasWebGL) {
+    expect(
+      browserName,
+      "chromium has WebGL in every environment this project runs in, so its " +
+        "absence is a broken environment rather than a platform fact",
+    ).not.toBe("chromium");
+    test.skip(true, `${browserName} has no WebGL; the park cannot mount`);
+  }
+
+  // Asserted rather than waited on a fixed timeout: `toHaveCount` retries, so
+  // a contended runner makes this slower rather than intermittently wrong.
+  await expect(page.locator("canvas")).toHaveCount(1);
+  await expect(page.locator('[class*="Pins-module"] a')).toHaveCount(
+    ATTRACTIONS.length,
   );
+  // The pins are positioned by the render loop, so one frame must have run
+  // before their geometry means anything.
+  await expect(page.locator('[class*="Pins-module"][class*="active"]')).toBeVisible();
 
-  const pins = page.locator('[class*="Pins-module"] a');
-  await expect(pins).toHaveCount(ATTRACTIONS.length);
-  return pins;
+  // And then the pop-in has to finish, because a pin's `scale` is animated
+  // from 0 and `getBoundingClientRect` reports the *scaled* box. Measuring a
+  // pin mid-animation reads its hit target as smaller than it settles at —
+  // which is a real but transient state, and not the one WCAG's target size
+  // is about.
+  //
+  // The last pin lands at (ATTRACTIONS.length - 1) * --stagger-pin plus
+  // --duration-pop: 6 * 100ms + 600ms = 1200ms. Waited on the tokens rather
+  // than a round number so a change to either is followed here.
+  const settle = await page.evaluate(() => {
+    const read = (name: string) => {
+      const raw = getComputedStyle(document.documentElement)
+        .getPropertyValue(name)
+        .trim();
+      if (raw.endsWith("ms")) return Number.parseFloat(raw) || 0;
+      if (raw.endsWith("s")) return (Number.parseFloat(raw) || 0) * 1000;
+      return 0;
+    };
+    return { stagger: read("--stagger-pin"), pop: read("--duration-pop") };
+  });
+  await page.waitForTimeout(
+    (ATTRACTIONS.length - 1) * settle.stagger + settle.pop + 250,
+  );
 }
 
 test.describe("the park fits its viewport", () => {
-  test("shows every pin inside the frame", async ({ page }) => {
+  test("shows every pin inside the frame", async ({ page, browserName }) => {
     // The camera distance is derived from the aspect ratio for this reason: a
     // constant tuned on a desktop put five of the seven pins off-screen on a
     // portrait phone, with no error anywhere.
-    await parkPins(page);
+    await requirePark(page, browserName);
 
     const offscreen = await page.evaluate(() => {
       const pins = [...document.querySelectorAll('[class*="Pins-module"] a')];
@@ -76,8 +128,11 @@ test.describe("the park fits its viewport", () => {
     expect(offscreen).toEqual([]);
   });
 
-  test("gives every pin a large enough hit target", async ({ page }) => {
-    await parkPins(page);
+  test("gives every pin a large enough hit target", async ({
+    page,
+    browserName,
+  }) => {
+    await requirePark(page, browserName);
 
     const small = await page.evaluate((floor) => {
       const pins = [...document.querySelectorAll('[class*="Pins-module"] a')];
@@ -94,11 +149,12 @@ test.describe("the park fits its viewport", () => {
 
   test("keeps every pin's accessible name even where its label is hidden", async ({
     page,
+    browserName,
   }) => {
     // On a narrow touch viewport the label is not drawn, because seven of them
     // do not fit. The name must still be there: a ring is an affordance, not a
     // reason for an attraction to become anonymous.
-    await parkPins(page);
+    await requirePark(page, browserName);
 
     for (const attraction of ATTRACTIONS) {
       await expect(
