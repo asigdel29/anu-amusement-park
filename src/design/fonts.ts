@@ -8,9 +8,9 @@
  *
  * Why next/font rather than a stylesheet link: it downloads and serves the font
  * files from this origin at build time. Nothing is fetched from fonts.gstatic.com
- * at runtime, which is what lets vercel.json keep a `font-src 'self'` CSP with no
- * third-party exception — and it removes a render-blocking cross-origin request on
- * the critical path of every content page.
+ * at runtime, which is what lets the CSP in next.config.ts keep `font-src 'self'`
+ * with no third-party exception — and it removes a render-blocking cross-origin
+ * request on the critical path of every content page.
  *
  * Weights are pinned to exactly those the design system uses (tokens.css:
  * --weight-body 600, --weight-display 800). Requesting a weight not listed here

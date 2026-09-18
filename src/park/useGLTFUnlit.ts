@@ -26,13 +26,16 @@ import { useGLTF } from "@react-three/drei";
 import { applyUnlitMaterials } from "./convertMaterial";
 import { PARK_MODEL_URL } from "./modelUrl";
 
-export { PARK_MODEL_URL };
-
 /** Where the vendored Draco decoder lives. Must end in a slash. */
 const DRACO_DECODER_PATH = "/draco/";
 
 export function useParkScene() {
-  const gltf = useGLTF(PARK_MODEL_URL, DRACO_DECODER_PATH);
+  // `useMeshopt: false`. drei defaults it on, which instantiates a ~20 KB
+  // WebAssembly module at first render — synchronously, on the critical path
+  // to a measured first-interactive. The park's glb declares only
+  // KHR_draco_mesh_compression and EXT_texture_webp, so that compile decoded
+  // nothing at all.
+  const gltf = useGLTF(PARK_MODEL_URL, DRACO_DECODER_PATH, false);
 
   return useMemo(() => {
     // The loaded graph is cached and shared by drei, so it is cloned before
@@ -52,6 +55,3 @@ export function useParkScene() {
     return scene;
   }, [gltf.scene]);
 }
-
-/** Warms the cache so the park is decoding while the page is still painting. */
-useParkScene.preload = () => useGLTF.preload(PARK_MODEL_URL, DRACO_DECODER_PATH);

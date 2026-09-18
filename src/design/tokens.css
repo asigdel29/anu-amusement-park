@@ -105,7 +105,7 @@
 
   --duration-fade: 400ms;
   --duration-pop: 600ms;
-  --duration-fly: 800ms; /* camera fly-to; read by src/park/useFlyTo.ts */
+  --duration-fly: 800ms; /* camera fly-to; read by src/park/Park.tsx */
   --stagger-pin: 100ms;
 }
 

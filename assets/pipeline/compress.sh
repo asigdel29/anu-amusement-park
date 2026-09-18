@@ -7,12 +7,11 @@
 # Usage: sh assets/pipeline/compress.sh <export_dir>
 #
 # WebP rather than KTX2/Basis, deliberately. KTX2 would roughly halve GPU
-# memory, but it needs the external `ktx` binary as a build dependency. The
-# navigation reference does ship Basis and this pipeline will too, but only once
-# a measurement shows GPU memory is the actual ceiling — until then the extra
-# build dependency costs more than it returns. src/park/useGLTFUnlit.ts already
-# wires a self-hosted KTX2Loader, so that switch is a pipeline change and not an
-# application one.
+# memory, but it needs the external `ktx` binary as a build dependency, and the
+# runtime does NOT wire a KTX2Loader — useGLTFUnlit.ts wires Draco only. So
+# flipping this to `--texture-compress ktx2` on its own would ship a park that
+# cannot decode its own atlas. docs/ASSETS.md lists all three changes the
+# switch needs; make them together or not at all.
 #
 # --simplify is off: the park is 9,485 polygons of deliberately flat-shaded
 # geometry, and a decimator would round off exactly the chamfers that keep it

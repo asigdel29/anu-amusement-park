@@ -26,7 +26,7 @@
 
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Canvas } from "@react-three/fiber";
+import { Canvas, invalidate } from "@react-three/fiber";
 import { PINNED_ATTRACTIONS, type PinnedAttraction } from "@/content/attractions";
 import { ORBIT, fitDistance } from "./orbitRig";
 import { cameraPosition, flightPlan } from "./flyTo";
@@ -108,6 +108,12 @@ export function Park() {
       startFlight(flightPlan(orbit, attraction.position, duration), () =>
         router.push(href),
       );
+      // On the demand loop nothing schedules a frame for a flight started from
+      // a React handler — the controls only invalidate on their own input — so
+      // without this the tween never runs its first frame and the route is
+      // never pushed. `invalidate` from the fiber module is the root-level
+      // form, usable from outside the Canvas.
+      invalidate();
     },
     [router, orbit],
   );
@@ -125,6 +131,21 @@ export function Park() {
         aria-hidden="true"
         tabIndex={-1}
         dpr={pixelRatioRange()}
+        /*
+         * The park is a static scene: no animation mixer, no auto-rotation,
+         * and one render-loop subscriber. On the default `always` loop it
+         * re-rendered the whole island sixty times a second forever, including
+         * while untouched — a full `gl.render` plus the projection pass plus
+         * the orbit controls' own update, for a picture that had not changed.
+         * On a phone that is battery drain until the tab closes.
+         *
+         * `demand` renders only when something asks. drei's OrbitControls
+         * invalidates on its own `change` event, so a drag and its damping
+         * tail keep rendering and then stop; resizes invalidate too. The one
+         * gap is the fly-to, which lives in `useFrame` and therefore has to
+         * ask for its own frames — `ParkScene` does that.
+         */
+        frameloop="demand"
         // The page's own background is the night sky. A transparent canvas
         // means the park sits on --surface-ground rather than on a second,
         // slightly-different black of its own.

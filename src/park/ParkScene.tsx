@@ -31,15 +31,30 @@ import { Vector3 } from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { PINNED_ATTRACTIONS } from "@/content/attractions";
 import { ORBIT } from "./orbitRig";
+
+/*
+ * The orbit target, destructured once at module scope.
+ *
+ * `camera.lookAt(...ORBIT.target)` spread a readonly tuple on every frame of a
+ * flight, which is the same per-frame allocation this file argues against for
+ * the pins. Also hoisted for `touches` below: an object literal in JSX is a
+ * fresh identity each render, so R3F re-applies `controls.touches` on every
+ * reconcile — and the file's own invariant says the controls' settings are
+ * never declared inline.
+ */
+const [TARGET_X, TARGET_Y, TARGET_Z] = ORBIT.target;
+
+/** One-finger orbit, two-finger zoom — the gesture set from every map app. */
+const TOUCHES = { ONE: 1, TWO: 2 } as const;
 import { useParkScene } from "./useGLTFUnlit";
 import { writePinPosition } from "./pinStore";
 import { cameraPosition, isComplete, orbitAt } from "./flyTo";
-import { completeFlight, currentFlight } from "./flightStore";
+import { completeFlight, currentFlight, resetFlight } from "./flightStore";
 
 export function ParkScene({ onReady }: { onReady: () => void }) {
   const scene = useParkScene();
   const controls = useRef<OrbitControlsImpl | null>(null);
-  const { camera, size } = useThree();
+  const { camera, size, invalidate } = useThree();
 
   // Reused across frames. Allocating a Vector3 per pin per frame is 420
   // allocations a second, which is exactly the shape of garbage that produces
@@ -53,10 +68,28 @@ export function ParkScene({ onReady }: { onReady: () => void }) {
     onReady();
   }, [onReady]);
 
+  useEffect(() => {
+    // Abandon any flight still in progress when the scene unmounts.
+    //
+    // `flightStore` is module-level, so without this a flight outlives the
+    // component that started it in two ways. It retains its `onArrive`
+    // closure — and through it the router, the href and the enclosing
+    // component scope — for the rest of the session, because only a frame can
+    // clear it and no frames run once this is unmounted. And if the visitor
+    // comes back to the park, the first frame finds an 800ms-stale flight,
+    // completes it immediately and pushes that old route out from under them.
+    return resetFlight;
+  }, []);
+
   useFrame(() => {
     const flight = currentFlight();
 
     if (flight) {
+      // On the demand loop nothing else will schedule the next frame of a
+      // tween: the controls invalidate on their own input, but a flight is
+      // driven from here. Ask for the frame after this one until it lands.
+      invalidate();
+
       // A flight owns the camera while it runs. Two things driving one camera
       // produces a fight that reads as stutter.
       if (controls.current) controls.current.enabled = false;
@@ -65,7 +98,7 @@ export function ParkScene({ onReady }: { onReady: () => void }) {
       const orbit = orbitAt(flight.plan, elapsed);
       const [x, y, z] = cameraPosition(orbit);
       camera.position.set(x, y, z);
-      camera.lookAt(...ORBIT.target);
+      camera.lookAt(TARGET_X, TARGET_Y, TARGET_Z);
 
       if (isComplete(flight.plan, elapsed)) {
         const arrive = completeFlight();
@@ -85,7 +118,8 @@ export function ParkScene({ onReady }: { onReady: () => void }) {
     // previous one — a one-frame lag here reads as the pins sliding across the
     // park during a tween.
     for (const attraction of PINNED_ATTRACTIONS) {
-      projected.set(...attraction.position);
+      const [px, py, pz] = attraction.position;
+      projected.set(px, py, pz);
       projected.project(camera);
 
       // z > 1 after projection means the point is beyond the far plane or
@@ -115,10 +149,8 @@ export function ParkScene({ onReady }: { onReady: () => void }) {
         maxPolarAngle={ORBIT.maxPolarAngle}
         minDistance={ORBIT.minDistance}
         maxDistance={ORBIT.maxDistance}
-        // One-finger orbit, two-finger pan-and-zoom is the gesture set a
-        // visitor already knows from every map application. Pan is off, so the
-        // two-finger gesture resolves to zoom alone.
-        touches={{ ONE: 1, TWO: 2 }}
+        // Pan is off, so the two-finger gesture resolves to zoom alone.
+        touches={TOUCHES}
       />
     </>
   );

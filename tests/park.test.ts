@@ -33,7 +33,6 @@ import {
 } from "@/park/flyTo";
 import {
   registerPinElement,
-  registeredPinCount,
   resetPinRegistry,
   writePinPosition,
 } from "@/park/pinStore";
@@ -218,10 +217,10 @@ describe("the pin DOM seam", () => {
   it("writes position, visibility and pointer state onto the element", () => {
     const node = document.createElement("a");
     registerPinElement("agent_arcade", node);
-    expect(registeredPinCount()).toBe(1);
 
     writePinPosition("agent_arcade", { x: 120.5, y: 40, visible: true });
-    expect(node.style.getPropertyValue("--translateX")).toBe("120.5px");
+    // Rounded to whole pixels — see writePinPosition on why.
+    expect(node.style.getPropertyValue("--translateX")).toBe("121px");
     expect(node.style.getPropertyValue("--translateY")).toBe("40px");
     expect(node.style.getPropertyValue("--visible")).toBe("1");
     expect(node.style.pointerEvents).toBe("auto");
@@ -238,6 +237,45 @@ describe("the pin DOM seam", () => {
     expect(node.style.pointerEvents).toBe("none");
   });
 
+  it("does not rewrite a property already holding the value", () => {
+    // The point of the cache: `visible` and `pointerEvents` change a handful of
+    // times in a session and never in the default pose, but were being written
+    // 60 times a second per pin. Counted through a style proxy rather than
+    // asserted indirectly.
+    const node = document.createElement("a");
+    const writes: string[] = [];
+    const real = node.style.setProperty.bind(node.style);
+    node.style.setProperty = (name: string, value: string) => {
+      writes.push(name);
+      real(name, value);
+    };
+    registerPinElement("launch_tower", node);
+
+    writePinPosition("launch_tower", { x: 10, y: 20, visible: true });
+    expect(writes).toEqual(["--translateX", "--translateY", "--visible"]);
+
+    writes.length = 0;
+    writePinPosition("launch_tower", { x: 10, y: 20, visible: true });
+    expect(writes).toEqual([]);
+
+    writes.length = 0;
+    writePinPosition("launch_tower", { x: 11, y: 20, visible: true });
+    expect(writes).toEqual(["--translateX"]);
+  });
+
+  it("treats sub-pixel jitter as no change", () => {
+    // A damping tail moves a pin by fractions of a pixel for many frames.
+    // Without the rounding every one of those frames would write all four
+    // properties, which is exactly when the cache most needs to hit.
+    const node = document.createElement("a");
+    registerPinElement("the_factory", node);
+    writePinPosition("the_factory", { x: 100.1, y: 50.2, visible: true });
+    const before = node.style.getPropertyValue("--translateX");
+    writePinPosition("the_factory", { x: 100.4, y: 50.3, visible: true });
+    expect(node.style.getPropertyValue("--translateX")).toBe(before);
+    expect(before).toBe("100px");
+  });
+
   it("ignores an unregistered pin instead of throwing", () => {
     // The render loop runs before the pin layer mounts. That frame having no
     // pins is the correct outcome, not an error.
@@ -250,7 +288,6 @@ describe("the pin DOM seam", () => {
     const node = document.createElement("a");
     registerPinElement("the_library", node);
     registerPinElement("the_library", null);
-    expect(registeredPinCount()).toBe(0);
     writePinPosition("the_library", { x: 5, y: 5, visible: true });
     expect(node.style.getPropertyValue("--translateX")).toBe("");
   });

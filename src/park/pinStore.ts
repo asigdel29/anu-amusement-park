@@ -39,39 +39,74 @@ export interface ProjectedPin {
   readonly visible: boolean;
 }
 
-const elements = new Map<string, HTMLElement>();
+/**
+ * A registered pin, with the last values written to it.
+ *
+ * The cache is in the same record as the node so one Map lookup per frame
+ * gets both. Its purpose is to skip writes that would set a property to the
+ * value it already holds: `visible` changes a handful of times in a whole
+ * session and never at all in the default pose, yet it and `pointerEvents`
+ * were being written 60 times a second per pin regardless.
+ */
+interface Registered {
+  readonly node: HTMLElement;
+  x: number;
+  y: number;
+  visible: boolean | null;
+}
+
+const elements = new Map<string, Registered>();
 
 /** Registers, or with `null` unregisters, a pin's element. */
 export function registerPinElement(id: string, node: HTMLElement | null): void {
-  if (node) elements.set(id, node);
-  else elements.delete(id);
+  if (node) {
+    // NaN and null seed the cache so the first write of each property always
+    // lands, whatever the projection happens to produce.
+    elements.set(id, { node, x: Number.NaN, y: Number.NaN, visible: null });
+  } else {
+    elements.delete(id);
+  }
 }
 
 /**
- * Writes a projected position onto a registered pin.
+ * Writes a projected position onto a registered pin, skipping any property
+ * already holding the value.
+ *
+ * Coordinates are rounded to whole pixels. That shortens every string the CSS
+ * value parser has to chew through, and — more importantly — it is what makes
+ * the change check actually hit during a damping tail, where sub-pixel jitter
+ * would defeat an exact comparison and write all four properties every frame
+ * anyway. At a device pixel ratio of 1.5 or more the rounding is invisible.
  *
  * A no-op for an unregistered id: the render loop may run a frame before the
  * pin layer mounts, and that frame having no pins is the correct outcome.
  */
 export function writePinPosition(id: string, pin: ProjectedPin): void {
-  const node = elements.get(id);
-  if (!node) return;
+  const entry = elements.get(id);
+  if (!entry) return;
 
-  const style = node.style;
-  style.setProperty("--translateX", `${pin.x}px`);
-  style.setProperty("--translateY", `${pin.y}px`);
-  style.setProperty("--visible", pin.visible ? "1" : "0");
-  // A pin behind the camera must not be clickable at whatever position it
-  // projected to.
-  style.pointerEvents = pin.visible ? "auto" : "none";
+  const x = Math.round(pin.x);
+  const y = Math.round(pin.y);
+  const style = entry.node.style;
+
+  if (x !== entry.x) {
+    style.setProperty("--translateX", `${x}px`);
+    entry.x = x;
+  }
+  if (y !== entry.y) {
+    style.setProperty("--translateY", `${y}px`);
+    entry.y = y;
+  }
+  if (pin.visible !== entry.visible) {
+    style.setProperty("--visible", pin.visible ? "1" : "0");
+    // A pin behind the camera must not be clickable at whatever position it
+    // projected to.
+    style.pointerEvents = pin.visible ? "auto" : "none";
+    entry.visible = pin.visible;
+  }
 }
 
 /** Clears the registry. Exists for tests; nothing in the app calls it. */
 export function resetPinRegistry(): void {
   elements.clear();
-}
-
-/** Number of registered pins. Exists so a test can assert registration. */
-export function registeredPinCount(): number {
-  return elements.size;
 }

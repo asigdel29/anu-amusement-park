@@ -10,6 +10,33 @@
  * property write rather than two.
  */
 
+/*
+ * Declared non-inheriting.
+ *
+ * A custom property is inherited by default, so writing --translateX on a pin
+ * invalidated its two children as well — 21 elements recalculated per frame
+ * rather than 7. Nothing below .pin reads these, and declaring them this way
+ * keeps the transform in the stylesheet, which was the whole point of moving
+ * the positioning into custom properties.
+ */
+@property --translateX {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --translateY {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --visible {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
 .layer {
   position: absolute;
   inset: 0;
@@ -75,7 +102,12 @@
   border: 2px solid var(--accent);
   background: color-mix(in srgb, var(--accent) 22%, transparent);
   box-shadow: 0 0 0.75rem color-mix(in srgb, var(--accent) 55%, transparent);
-  transition: all var(--duration-fade) var(--ease-default);
+  /* Named rather than `all`: only these two are ever transitioned, and `all`
+   * makes the browser evaluate every animatable property against the
+   * transition list on an element that sits on the render loop's write path. */
+  transition:
+    background var(--duration-fade) var(--ease-default),
+    scale var(--duration-fade) var(--ease-default);
 }
 
 .label {
@@ -114,12 +146,12 @@
   scale: 1.15;
 }
 
+/* The focus ring itself comes from app/globals.css's :focus-visible rule; only
+ * the pill treatment is specific to a pin. */
 .pin:focus-visible {
   background: var(--surface-panel);
   border: 1px solid var(--accent);
   border-radius: var(--radius-pill);
-  outline: 2px solid var(--neon-mint);
-  outline-offset: 3px;
 }
 
 /* Hover is gated so a touch device never inherits a hover-only path — which is

@@ -44,17 +44,27 @@ export function supportsWebGL(): boolean {
   }
 }
 
-/** True when the primary pointer is a finger rather than a mouse. */
-export function isCoarsePointer(): boolean {
+/**
+ * True when the primary pointer is a finger rather than a mouse.
+ *
+ * Module-private: only `pixelRatioRange` needs it. Component code asks about
+ * touch through CSS `@media (any-hover: hover)` / `(hover: none)`, which is
+ * where that question belongs.
+ */
+function isCoarsePointer(): boolean {
   if (typeof window === "undefined") return false;
   return window.matchMedia?.("(pointer: coarse)").matches ?? false;
 }
 
-/** True when the visitor has asked the system to reduce motion. */
-export function prefersReducedMotion(): boolean {
-  if (typeof window === "undefined") return false;
-  return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
-}
+/*
+ * There is deliberately no `prefersReducedMotion()` here.
+ *
+ * Reduced motion is honoured by reading the `--duration-fly` token, which
+ * tokens.css zeroes inside the media query — so every duration has one
+ * declaration and no component needs a branch. A predicate here would be the
+ * obvious thing to reach for and would reintroduce exactly the drift that
+ * arrangement exists to prevent. See src/design/tokens.css invariant 3.
+ */
 
 /**
  * The device pixel ratio the park should render at, as three.js's `[min, max]`
