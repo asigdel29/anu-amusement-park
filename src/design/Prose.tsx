@@ -26,7 +26,17 @@ import type { Section, TextRun } from "@/content/prose";
 import { parseSection } from "@/content/prose";
 import styles from "./Prose.module.css";
 
-function Runs({ runs }: { runs: readonly TextRun[] }) {
+/**
+ * Renders parsed text runs, with `*emphasis*` spans as `<em>`.
+ *
+ * Exported because the fortune booth and the entrance render the same parsed
+ * runs. Leaving it module-private meant this component and its `.emphasis`
+ * rule were each written three times, and the rule carries a real constraint —
+ * `--neon-mint` is used because the per-attraction accent varies and one of the
+ * six fails AA for body text. Three hand-maintained copies of a contrast
+ * decision is how one page quietly ends up with the unsafe one.
+ */
+export function Runs({ runs }: { runs: readonly TextRun[] }) {
   return (
     <>
       {runs.map((run, index) =>

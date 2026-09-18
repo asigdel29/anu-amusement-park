@@ -142,9 +142,13 @@ preference without branching, and one that hard-codes a duration is caught by
 
 ### Layout
 
-12 columns. Gutter 40px on desktop, 0 on mobile. Page margin 80px desktop, 16px
-mobile. Content is capped by measure, not by viewport. Breakpoints
-`480 / 768 / 960 / 1024 / 1440 / 1920`.
+Page margin 80px on desktop, 16px on mobile; content capped by measure rather
+than by viewport. Breakpoints `480 / 768 / 960 / 1024 / 1440 / 1920`.
+
+The reference's 12-column, 40px-gutter grid was transcribed into tokens and
+then never used — every page here is a single column of prose — so those tokens
+are gone rather than documented as if they were in force. Add them back
+alongside the component that needs them.
 
 Hover affordances live behind `@media (any-hover: hover)`. A touch device never
 inherits a hover-only path, which is what keeps the pins usable on a phone.

@@ -14,18 +14,15 @@
 import { test, expect } from "@playwright/test";
 import { ATTRACTIONS, ENTRANCE } from "../src/content/attractions";
 import { PROFILE } from "../src/content/profile";
+import {
+  directoryLink,
+  expectDirectoryListsEveryAttraction,
+} from "./park";
 
 test.describe("the park directory", () => {
   test("lists every attraction", async ({ page }) => {
     await page.goto("/");
-    const directory = page.getByRole("navigation", { name: "park directory" });
-    await expect(directory).toBeVisible();
-
-    for (const attraction of ATTRACTIONS) {
-      await expect(
-        directory.getByRole("link", { name: new RegExp(attraction.name, "i") }),
-      ).toBeVisible();
-    }
+    await expectDirectoryListsEveryAttraction(page);
   });
 
   test("names the park and its subtitle in the document", async ({ page }) => {
@@ -41,10 +38,7 @@ for (const attraction of ATTRACTIONS) {
   test.describe(attraction.name, () => {
     test("opens from the directory and names itself", async ({ page }) => {
       await page.goto("/");
-      await page
-        .getByRole("navigation", { name: "park directory" })
-        .getByRole("link", { name: new RegExp(attraction.name, "i") })
-        .click();
+      await directoryLink(page, attraction.name).click();
 
       await expect(page).toHaveURL(new RegExp(`/${attraction.slug}$`));
       await expect(page.getByRole("heading", { level: 1 })).toHaveText(
@@ -95,9 +89,7 @@ test.describe("reachable without a pointer", () => {
 
     if (browserName === "webkit") {
       for (const attraction of ATTRACTIONS) {
-        const link = page
-          .getByRole("navigation", { name: "park directory" })
-          .getByRole("link", { name: new RegExp(attraction.name, "i") });
+        const link = directoryLink(page, attraction.name);
         await expect(link).not.toHaveAttribute("tabindex", "-1");
         await link.focus();
         await expect(link).toBeFocused();
@@ -162,14 +154,7 @@ test.describe("reachable without JavaScript", () => {
 
   test("the directory still lists and links every attraction", async ({ page }) => {
     await page.goto("/");
-    const directory = page.getByRole("navigation", { name: "park directory" });
-    await expect(directory).toBeVisible();
-
-    for (const attraction of ATTRACTIONS) {
-      await expect(
-        directory.getByRole("link", { name: new RegExp(attraction.name, "i") }),
-      ).toHaveAttribute("href", `/${attraction.slug}`);
-    }
+    await expectDirectoryListsEveryAttraction(page);
   });
 
   test("each attraction page renders its content server-side", async ({ page }) => {

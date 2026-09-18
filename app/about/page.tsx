@@ -11,7 +11,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ENTRANCE } from "@/content/attractions";
 import { PROFILE } from "@/content/profile";
-import { Prose } from "@/design/Prose";
+import { Prose, Runs } from "@/design/Prose";
 import { parseEmphasis } from "@/content/prose";
 import styles from "./page.module.css";
 
@@ -30,15 +30,7 @@ export default function EntrancePage() {
       <header className={styles.header}>
         <h1>{PROFILE.name}</h1>
         <p className={styles.intro}>
-          {parseEmphasis(PROFILE.intro).map((run, index) =>
-            run.emphasis ? (
-              <em key={index} className={styles.emphasis}>
-                {run.text}
-              </em>
-            ) : (
-              <span key={index}>{run.text}</span>
-            ),
-          )}
+          <Runs runs={parseEmphasis(PROFILE.intro)} />
         </p>
         <ul className={styles.socials}>
           {PROFILE.socials.map((social) => (

@@ -29,7 +29,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { Vector3 } from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
-import { PINNED_ATTRACTIONS } from "@/content/attractions";
+import { PINNED_ATTRACTIONS } from "./pinnedAttractions";
 import { ORBIT } from "./orbitRig";
 
 /*

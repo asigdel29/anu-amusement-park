@@ -33,7 +33,7 @@
  */
 
 import { useCallback } from "react";
-import type { PinnedAttraction } from "@/content/attractions";
+import type { PinnedAttraction } from "./pinnedAttractions";
 import { registerPinElement } from "./pinStore";
 import styles from "./Pins.module.css";
 

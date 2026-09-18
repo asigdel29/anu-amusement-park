@@ -27,7 +27,7 @@
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Canvas, invalidate } from "@react-three/fiber";
-import { PINNED_ATTRACTIONS, type PinnedAttraction } from "@/content/attractions";
+import { PINNED_ATTRACTIONS, type PinnedAttraction } from "./pinnedAttractions";
 import { ORBIT, fitDistance } from "./orbitRig";
 import { cameraPosition, flightPlan } from "./flyTo";
 import { ParkScene } from "./ParkScene";

@@ -34,12 +34,6 @@
   }
 }
 
-/* Body-safe on every surface, and the same emphasis colour Prose uses, so a
- * highlighted phrase means one thing across the whole site. */
-.emphasis {
-  font-style: normal;
-  color: var(--neon-mint);
-}
 
 /* The one place the reference's gradient call-to-action is used, because this
  * is the one page with a thing to press. */

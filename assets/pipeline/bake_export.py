@@ -43,8 +43,8 @@ previous world's pipeline.
 
 Pin positions
 -------------
-Every Empty in the scene whose name matches an attraction id is read and its
-world position written to ``pins.json``. Numbers flow one direction — Blender,
+Every Empty in the scene is a pin anchor and is read, its world position
+written to ``pins.json`` under its own name. Numbers flow one direction — Blender,
 JSON, application — so this file is the only writer of pin positions, and
 ``tests/attractions.test.ts`` asserts the result agrees with ``ATTRACTIONS``.
 
@@ -87,18 +87,6 @@ BAKE_SAMPLES = 64
 #: itself soft. It ships as its own object with a flat unlit colour instead.
 EXCLUDE_FROM_BAKE = {"Water"}
 
-#: Attraction ids, mirroring src/content/attractions.ts. Used to tell an
-#: attraction anchor from any other Empty in the scene. A mismatch here is
-#: caught by tests/attractions.test.ts rather than passing silently.
-ATTRACTION_IDS = [
-    "agent_arcade",
-    "the_factory",
-    "idea_graveyard",
-    "the_library",
-    "hardware_workshop",
-    "launch_tower",
-    "fortune_booth",
-]
 
 
 def log(*args: object) -> None:
@@ -111,23 +99,33 @@ def log(*args: object) -> None:
 def write_pins(repo_root: str) -> dict[str, list[float]]:
     """Writes every attraction anchor's position to ``pins.json``.
 
-    Raises rather than writing a partial file if an expected anchor is missing:
-    a pin with no position would render at the origin, which looks like a
-    styling bug and is actually a missing Empty.
+    Reads the Empties out of the scene rather than checking them off a list of
+    ids. ``park_build.py`` creates Empties *only* as pin anchors — the moon is a
+    LIGHT and the camera is a CAMERA — so every Empty in the scene is by
+    construction an anchor, and a hardcoded list here was a third copy of the
+    attraction ids that also made this docstring untrue.
+
+    A renamed or missing anchor is still caught, and caught better: the key set
+    of the file this writes no longer matches ``ATTRACTIONS``, which
+    ``tests/attractions.test.ts`` asserts.
     """
+    empties = sorted(
+        (obj for obj in bpy.context.scene.objects if obj.type == "EMPTY"),
+        key=lambda obj: obj.name,
+    )
+    if not empties:
+        raise RuntimeError(
+            "no Empties in the scene; assets/park_build.py must place one per "
+            "attraction as a pin anchor"
+        )
+
     pins: dict[str, list[float]] = {}
-    for attraction_id in ATTRACTION_IDS:
-        empty = bpy.data.objects.get(attraction_id)
-        if empty is None or empty.type != "EMPTY":
-            raise RuntimeError(
-                f"no Empty named {attraction_id!r} in the scene; "
-                "assets/park_build.py must place one per attraction"
-            )
+    for empty in empties:
         x, y, z = empty.matrix_world.translation
         # Blender Z-up to runtime Y-up. The glTF exporter applies the same
         # conversion to geometry, so doing it here keeps the pins registered
         # with the mesh they hover over.
-        pins[attraction_id] = [round(x, 4), round(z, 4), round(-y, 4)]
+        pins[empty.name] = [round(x, 4), round(z, 4), round(-y, 4)]
 
     path = os.path.join(repo_root, "assets", "pipeline", "pins.json")
     with open(path, "w", encoding="utf8") as fh:

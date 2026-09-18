@@ -17,7 +17,14 @@
  * about 19m.
  */
 
-import { ORBIT_TARGET } from "@/content/attractions";
+/**
+ * Where the orbit camera pivots, in the runtime's Y-up metres.
+ *
+ * Slightly above the plate rather than on it, so the park sits in the lower two
+ * thirds of frame — the reference's composition, and it leaves room above the
+ * skyline for the pin labels.
+ */
+const ORBIT_TARGET: readonly [number, number, number] = [0, 3, 0];
 
 export const ORBIT = {
   /**
@@ -48,9 +55,6 @@ export const ORBIT = {
   minDistance: 26,
   maxDistance: 260,
 
-  /** Where the orbit pivots. Slightly above the plate, so the park sits in the
-   * lower two thirds of frame rather than dead centre — the reference's
-   * composition, and it leaves room for the pin labels above the skyline. */
   target: ORBIT_TARGET,
 
   /** Matches the reference's damped feel. Below about 0.05 the camera drifts

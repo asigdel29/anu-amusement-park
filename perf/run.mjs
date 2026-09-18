@@ -127,16 +127,38 @@ const BUDGETS = {
 /** Two 60Hz refresh intervals. A frame longer than this dropped one. */
 const DROPPED_FRAME_MS = 33.4;
 
-const CONTENT_ROUTES = [
-  "/arcade",
-  "/factory",
-  "/library",
-  "/launch",
-  "/fortune",
-  "/graveyard",
-  "/workshop",
-  "/about",
-];
+/**
+ * The content routes, read from the deployment's own sitemap.
+ *
+ * This file runs under bare Node, so it cannot import `ALL_SLUGS` — but
+ * `app/sitemap.ts` is generated from exactly that list, and
+ * `e2e/content.spec.ts` already treats the sitemap as the authority. A
+ * hardcoded array here was the one route list in the repo that could go stale:
+ * adding an attraction gave it a pin, a page, a directory entry, a sitemap
+ * entry and an e2e check, and no perf budget — and the harness would have
+ * reported green over a route it never loaded.
+ *
+ * It also matters for the `PERF_BASE_URL=https://…` mode, where this now
+ * measures the routes the deployment actually serves rather than the ones this
+ * file remembers.
+ */
+async function contentRoutes() {
+  const response = await fetch(`${BASE_URL}/sitemap.xml`);
+  if (!response.ok) {
+    throw new Error(
+      `could not read ${BASE_URL}/sitemap.xml (${response.status}); ` +
+        "is the server running and built?",
+    );
+  }
+  const xml = await response.text();
+  const routes = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)]
+    .map((match) => new URL(match[1], BASE_URL).pathname)
+    .filter((path) => path !== "/");
+  if (routes.length === 0) {
+    throw new Error("the sitemap listed no content routes");
+  }
+  return routes.sort();
+}
 
 /**
  * Installed before any page script so the observers are registered before the
@@ -278,6 +300,27 @@ async function measurePark(browser) {
 
 const ms = (n) => (Number.isFinite(n) ? `${Math.round(n)} ms` : "not reached");
 
+/**
+ * Records one measurement against its budget.
+ *
+ * The comparison is written `!(value <= budget)` rather than `value > budget`
+ * so a NaN or a never-reached Infinity fails rather than passing. Five
+ * hand-written copies of this block had drifted: three used the safe form and
+ * two did not, so the not-reached guard covered some metrics and not others.
+ */
+function check(rows, failures, measure, value, budget, format = ms) {
+  const over = !(value <= budget);
+  if (over) {
+    failures.push(`${measure} ${format(value)} > ${format(budget)}`);
+  }
+  rows.push({
+    measure,
+    value: format(value),
+    budget: format(budget),
+    status: over ? "OVER" : "ok",
+  });
+}
+
 async function main() {
   const browser = await chromium.launch();
   const rows = [];
@@ -289,65 +332,37 @@ async function main() {
       `${PROFILE.network.latency}ms RTT, 390x844\nTarget: ${BASE_URL}\n`,
   );
 
-  for (const route of CONTENT_ROUTES) {
+  const routes = await contentRoutes();
+  for (const route of routes) {
     const { lcp, cls } = await measureRoute(browser, route);
-    const overLcp = lcp > BUDGETS.contentLcp;
-    const overCls = cls > BUDGETS.cls;
-    if (overLcp) failures.push(`${route} LCP ${ms(lcp)} > ${ms(BUDGETS.contentLcp)}`);
-    if (overCls) failures.push(`${route} CLS ${cls.toFixed(3)} > ${BUDGETS.cls}`);
-    rows.push({
-      measure: `LCP ${route}`,
-      value: ms(lcp),
-      budget: ms(BUDGETS.contentLcp),
-      status: overLcp ? "OVER" : "ok",
-    });
-    rows.push({
-      measure: `CLS ${route}`,
-      value: cls.toFixed(3),
-      budget: BUDGETS.cls.toFixed(3),
-      status: overCls ? "OVER" : "ok",
-    });
+    check(rows, failures, `LCP ${route}`, lcp, BUDGETS.contentLcp);
+    check(rows, failures, `CLS ${route}`, cls, BUDGETS.cls, (n) => n.toFixed(3));
   }
 
   const park = await measurePark(browser);
-  const overInteractive = !(park.interactive <= BUDGETS.parkInteractive);
-  const overFrame = !(park.p95 <= BUDGETS.frameP95);
-  if (overInteractive) {
-    failures.push(
-      `park first-interactive ${ms(park.interactive)} > ${ms(BUDGETS.parkInteractive)}`,
-    );
-  }
-  if (overFrame) {
-    failures.push(
-      `park frame p95 ${park.p95.toFixed(1)}ms > ${BUDGETS.frameP95}ms`,
-    );
-  }
-  rows.push({
-    measure: "park first-interactive",
-    value: ms(park.interactive),
-    budget: ms(BUDGETS.parkInteractive),
-    status: overInteractive ? "OVER" : "ok",
-  });
-  rows.push({
-    measure: `park frame p95 (${park.frameCount} frames)`,
-    value: `${park.p95.toFixed(1)} ms`,
-    budget: `${BUDGETS.frameP95} ms`,
-    status: overFrame ? "OVER" : "ok",
-  });
-
-  const overDropped = !(park.droppedRatio <= BUDGETS.droppedFrameRatio);
-  if (overDropped) {
-    failures.push(
-      `park dropped ${(park.droppedRatio * 100).toFixed(1)}% of frames > ` +
-        `${BUDGETS.droppedFrameRatio * 100}%`,
-    );
-  }
-  rows.push({
-    measure: "park dropped frames",
-    value: `${(park.droppedRatio * 100).toFixed(1)} %`,
-    budget: `${BUDGETS.droppedFrameRatio * 100} %`,
-    status: overDropped ? "OVER" : "ok",
-  });
+  check(
+    rows,
+    failures,
+    "park first-interactive",
+    park.interactive,
+    BUDGETS.parkInteractive,
+  );
+  check(
+    rows,
+    failures,
+    `park frame p95 (${park.frameCount} frames)`,
+    park.p95,
+    BUDGETS.frameP95,
+    (n) => `${n.toFixed(1)} ms`,
+  );
+  check(
+    rows,
+    failures,
+    "park dropped frames",
+    park.droppedRatio,
+    BUDGETS.droppedFrameRatio,
+    (n) => `${(n * 100).toFixed(1)} %`,
+  );
 
   console.table(rows);
   await browser.close();

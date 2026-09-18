@@ -129,3 +129,35 @@ test.describe("the fortune booth draws", () => {
     expect(seen.size).toBeGreaterThan(1);
   });
 });
+
+test.describe("an open attraction has something to show", () => {
+  // Moved here from the unit suite, where it was asserted against a hardcoded
+  // list of three attraction ids — the exact stale-list pattern those tests
+  // exist to prevent, and one that failed open. Whether a page renders content
+  // is only observable in a browser.
+  test.use({ javaScriptEnabled: false });
+
+  for (const attraction of ATTRACTIONS) {
+    if (attraction.status !== "open") continue;
+
+    test(`${attraction.name} renders content past its header`, async ({ page }) => {
+      await page.goto(`/${attraction.slug}`);
+      // An attraction marked open with nothing on it is the one combination
+      // that produces a page claiming to be finished and showing nothing.
+      await expect(
+        page.getByRole("heading", { name: /still being built/i }),
+      ).toHaveCount(0);
+
+      const bodyText = await page.locator("main").innerText();
+      const chrome = [attraction.name, attraction.tagline, "back to the park"];
+      const remaining = chrome.reduce(
+        (text, part) => text.replace(part, ""),
+        bodyText,
+      );
+      expect(
+        remaining.trim().length,
+        `${attraction.slug} shows nothing beyond its own heading and lede`,
+      ).toBeGreaterThan(40);
+    });
+  }
+});

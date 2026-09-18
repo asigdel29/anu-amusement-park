@@ -24,6 +24,7 @@ import {
   relativeLuminance,
   worstCaseRatio,
 } from "../scripts/contrast.lib.mjs";
+import { ACCENTS, SURFACES as DESIGN_SURFACES } from "@/design/palette";
 
 // Resolved from the working directory rather than from `import.meta.url`: under
 // Vitest's jsdom environment the module's own URL is not a `file:` URL, so the
@@ -81,6 +82,32 @@ describe("tokens.css agrees with the palette the gates check", () => {
       );
     },
   );
+});
+
+describe("src/design/palette.ts agrees with tokens.css", () => {
+  // The renderer-facing copy of the palette. It exists because an
+  // ImageResponse has no stylesheet, so `var(--neon-cyan)` there is a
+  // transparent rule rather than an error — which is exactly why it needs a
+  // gate. Before this, ogImage.tsx carried its own hexes and claimed in a
+  // comment that this test asserted them. Nothing did.
+  it.each(Object.entries(ACCENTS))("declares --%s as %s", (name, hex) => {
+    expect(declaredValue(name)?.toLowerCase()).toBe(hex.toLowerCase());
+  });
+
+  it.each(Object.entries(DESIGN_SURFACES))(
+    "declares --%s as %s",
+    (name, hex) => {
+      expect(declaredValue(name)?.toLowerCase()).toBe(hex.toLowerCase());
+    },
+  );
+
+  it("covers every accent the attraction list can use", () => {
+    // A new accent token added to tokens.css and to AccentToken but forgotten
+    // here would render a card with an undefined colour.
+    expect(Object.keys(ACCENTS).sort()).toEqual(
+      Object.keys(PALETTE).filter((k) => k.startsWith("neon-")).sort(),
+    );
+  });
 });
 
 describe("palette contrast invariants", () => {

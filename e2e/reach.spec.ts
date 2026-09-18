@@ -11,6 +11,14 @@
 
 import { test, expect, type Page } from "@playwright/test";
 import { ATTRACTIONS, ENTRANCE } from "../src/content/attractions";
+import {
+  PIN_LAYER_ACTIVE,
+  PIN_LINKS,
+  directoryLink,
+  expectDirectoryListsEveryAttraction,
+  pin,
+  pins,
+} from "./park";
 
 const ROUTES = ["/", ...ATTRACTIONS.map((a) => `/${a.slug}`), `/${ENTRANCE.slug}`];
 
@@ -28,10 +36,10 @@ const MIN_TARGET = 44;
  *
  * The first fix keyed the skip on `canvas` being absent, which relocated the
  * same fault rather than removing it: a park broken on a *capable* engine also
- * renders no canvas, so a renamed Empty in `assets/park_build.py` — which makes
- * `PINNED_ATTRACTIONS` throw at module evaluation and takes the whole dynamic
- * import down with it — would have skipped silently on chromium and reported
- * green.
+ * renders no canvas. A renamed Empty in `assets/park_build.py` now makes
+ * `src/park/pinnedAttractions.ts` throw and takes the park's dynamic import
+ * down with it — leaving the rest of the site intact, by design — and that
+ * would have skipped silently on chromium and reported green.
  *
  * So the skip is keyed on the engine's *capability*, probed directly, and never
  * on the outcome the tests exist to check. An engine with WebGL must produce
@@ -71,12 +79,10 @@ async function requirePark(page: Page, browserName: string) {
   // Asserted rather than waited on a fixed timeout: `toHaveCount` retries, so
   // a contended runner makes this slower rather than intermittently wrong.
   await expect(page.locator("canvas")).toHaveCount(1);
-  await expect(page.locator('[class*="Pins-module"] a')).toHaveCount(
-    ATTRACTIONS.length,
-  );
+  await expect(pins(page)).toHaveCount(ATTRACTIONS.length);
   // The pins are positioned by the render loop, so one frame must have run
   // before their geometry means anything.
-  await expect(page.locator('[class*="Pins-module"][class*="active"]')).toBeVisible();
+  await expect(page.locator(PIN_LAYER_ACTIVE)).toBeVisible();
 
   // And then the pop-in has to finish, because a pin's `scale` is animated
   // from 0 and `getBoundingClientRect` reports the *scaled* box. Measuring a
@@ -110,11 +116,11 @@ test.describe("the park fits its viewport", () => {
     // portrait phone, with no error anywhere.
     await requirePark(page, browserName);
 
-    const offscreen = await page.evaluate(() => {
-      const pins = [...document.querySelectorAll('[class*="Pins-module"] a')];
-      return pins
-        .filter((pin) => {
-          const r = pin.getBoundingClientRect();
+    const offscreen = await page.evaluate((selector) => {
+      const found = [...document.querySelectorAll(selector)];
+      return found
+        .filter((el) => {
+          const r = el.getBoundingClientRect();
           return (
             r.left < 0 ||
             r.top < 0 ||
@@ -122,8 +128,8 @@ test.describe("the park fits its viewport", () => {
             r.bottom > window.innerHeight
           );
         })
-        .map((pin) => pin.getAttribute("href"));
-    });
+        .map((el) => el.getAttribute("href"));
+    }, PIN_LINKS);
 
     expect(offscreen).toEqual([]);
   });
@@ -134,15 +140,18 @@ test.describe("the park fits its viewport", () => {
   }) => {
     await requirePark(page, browserName);
 
-    const small = await page.evaluate((floor) => {
-      const pins = [...document.querySelectorAll('[class*="Pins-module"] a')];
-      return pins
-        .filter((pin) => {
-          const r = pin.getBoundingClientRect();
-          return r.width < floor || r.height < floor;
-        })
-        .map((pin) => pin.getAttribute("href"));
-    }, MIN_TARGET);
+    const small = await page.evaluate(
+      ({ floor, selector }) => {
+        const found = [...document.querySelectorAll(selector)];
+        return found
+          .filter((el) => {
+            const r = el.getBoundingClientRect();
+            return r.width < floor || r.height < floor;
+          })
+          .map((el) => el.getAttribute("href"));
+      },
+      { floor: MIN_TARGET, selector: PIN_LINKS },
+    );
 
     expect(small).toEqual([]);
   });
@@ -158,7 +167,7 @@ test.describe("the park fits its viewport", () => {
 
     for (const attraction of ATTRACTIONS) {
       await expect(
-        page.locator(`[class*="Pins-module"] a[href="/${attraction.slug}"]`),
+        pin(page, attraction.slug),
       ).toHaveAccessibleName(new RegExp(attraction.name, "i"));
     }
   });
@@ -218,18 +227,10 @@ test.describe("the park is never the only way in", () => {
     // rendering a broken one.
     await expect(page.locator("canvas")).toHaveCount(0);
 
-    const directory = page.getByRole("navigation", { name: "park directory" });
-    await expect(directory).toBeVisible();
-    for (const attraction of ATTRACTIONS) {
-      await expect(
-        directory.getByRole("link", { name: new RegExp(attraction.name, "i") }),
-      ).toBeVisible();
-    }
+    await expectDirectoryListsEveryAttraction(page);
 
     // And the directory still navigates.
-    await directory
-      .getByRole("link", { name: new RegExp(ATTRACTIONS[0].name, "i") })
-      .click();
+    await directoryLink(page, ATTRACTIONS[0].name).click();
     await expect(page).toHaveURL(new RegExp(`/${ATTRACTIONS[0].slug}$`));
   });
 });

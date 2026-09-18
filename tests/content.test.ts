@@ -39,21 +39,15 @@ describe("projects are exhibited somewhere real", () => {
     }
   });
 
-  it("gives every open attraction either content or an honest status", () => {
-    // An attraction marked open with nothing on it is the one combination that
-    // produces a page claiming to be finished and showing nothing.
-    for (const attraction of ATTRACTIONS) {
-      if (attraction.status !== "open") continue;
-      const hasProjects = projectsFor(attraction.id).length > 0;
-      const hasOwnContent = ["the_library", "fortune_booth", "launch_tower"].includes(
-        attraction.id,
-      );
-      expect(
-        hasProjects || hasOwnContent,
-        `${attraction.id} is marked open but has nothing to show`,
-      ).toBe(true);
-    }
-  });
+  /*
+   * "An open attraction has something to show" used to be asserted here
+   * against a hardcoded list of three ids — which is the very pattern these
+   * tests exist to prevent, and it failed open: a new open-but-empty
+   * attraction added to that list would have passed forever.
+   *
+   * Whether a page renders content is only observable in a browser, so the
+   * assertion moved to e2e/content.spec.ts, which already visits every page.
+   */
 
   it("uses unique slugs and absolute urls", () => {
     const slugs = PROJECTS.map((p) => p.slug);

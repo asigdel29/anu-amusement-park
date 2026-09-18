@@ -1,35 +1,26 @@
 /*
- * The entrance's own layout. Close to AttractionLayout's, but this page has no
- * accent to carry — it is not a ride — so it does not share that stylesheet
- * and pretend to have one.
+ * The entrance's own layout.
+ *
+ * `.page`, `.back` and `.header` are composed from AttractionLayout's
+ * stylesheet rather than re-declared. They were byte-identical copies, and the
+ * justification for the fork — "this page has no accent to carry, so it does
+ * not share that stylesheet and pretend to have one" — only ever covered the
+ * accent-dependent rules. `--accent` is read by exactly two of them, `.rule`
+ * and `.construction`, and the entrance renders neither. Not having an accent
+ * is a reason not to draw a rule, not a reason to re-type the page box and the
+ * back link.
  */
 
 .page {
-  min-height: 100dvh;
-  padding: var(--grid-margin);
-  padding-bottom: 6rem;
-  display: grid;
-  align-content: start;
-  gap: 2rem;
-  max-width: calc(var(--content-max) + 2 * var(--grid-margin));
+  composes: page from "../../src/design/AttractionLayout.module.css";
 }
 
 .back {
-  font-size: var(--body-sm);
-  color: var(--text-muted);
-  text-decoration: none;
-  justify-self: start;
-}
-
-@media (any-hover: hover) {
-  .back:hover {
-    color: var(--text-primary);
-  }
+  composes: back from "../../src/design/AttractionLayout.module.css";
 }
 
 .header {
-  display: grid;
-  gap: 0.75rem;
+  composes: header from "../../src/design/AttractionLayout.module.css";
 }
 
 .intro {
@@ -38,10 +29,6 @@
   font-size: var(--body-lg);
 }
 
-.emphasis {
-  font-style: normal;
-  color: var(--neon-mint);
-}
 
 .socials {
   list-style: none;

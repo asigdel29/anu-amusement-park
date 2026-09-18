@@ -6,33 +6,27 @@
  * this rather than composing its own, so a card cannot disagree with the
  * attraction it represents.
  *
- * The accent is resolved from the token palette here rather than read from
- * CSS: an `ImageResponse` is rendered on the server with no stylesheet and no
- * custom properties, so `var(--neon-cyan)` would silently produce a
- * transparent rule. The values are duplicated for that reason and asserted
- * against tokens.css by tests/tokens.test.ts.
+ * The accent comes from `src/design/palette.ts` rather than from CSS: an
+ * `ImageResponse` renders on the server with no stylesheet and no custom
+ * properties, so `var(--neon-cyan)` would silently produce a transparent rule.
+ * That module is asserted against tokens.css by tests/tokens.test.ts, so the
+ * card cannot ship a colour the site no longer uses — which it could when this
+ * file carried its own copy of the hexes.
  *
  * No custom font is loaded. Doing so means fetching a font file at render
- * time, and the card's job is to be legible in a link preview rather than to
- * be typographically exact — a font fetch that fails would produce no card at
+ * time, and the card's job is to be legible in a link preview rather than
+ * typographically exact — a font fetch that failed would produce no card at
  * all, which is worse than a card in the default face.
  */
 
 import { ImageResponse } from "next/og";
-import type { AccentToken } from "@/content/attractions";
+import type { AccentToken, Attraction } from "@/content/attractions";
+import { attractionBySlug } from "@/content/attractions";
+import { ACCENTS, SURFACES } from "./palette";
 
 export const OG_SIZE = { width: 1200, height: 630 };
 export const OG_CONTENT_TYPE = "image/png";
 
-/** Mirrors src/design/tokens.css. See this module's note on why. */
-const ACCENTS: Record<AccentToken, string> = {
-  "neon-pink": "#ff3891",
-  "neon-yellow": "#ffbf04",
-  "neon-cyan": "#00c2ff",
-  "neon-purple": "#ad00ff",
-  "neon-mint": "#4ff29f",
-  "neon-blue": "#38b7ff",
-};
 
 export function parkCard({
   title,
@@ -54,7 +48,7 @@ export function parkCard({
           display: "flex",
           flexDirection: "column",
           justifyContent: "center",
-          background: "#08070d",
+          background: SURFACES["surface-ground"],
           padding: "80px",
         }}
       >
@@ -71,14 +65,14 @@ export function parkCard({
           style={{
             fontSize: 84,
             fontWeight: 800,
-            color: "#f4f1ea",
+            color: SURFACES["text-primary"],
             letterSpacing: "-0.03em",
             lineHeight: 1.05,
           }}
         >
           {title}
         </div>
-        <div style={{ fontSize: 34, color: "#9a94ad", marginTop: "24px" }}>
+        <div style={{ fontSize: 34, color: SURFACES["text-muted"], marginTop: "24px" }}>
           {description}
         </div>
         {note && (
@@ -86,11 +80,42 @@ export function parkCard({
             {note}
           </div>
         )}
-        <div style={{ fontSize: 24, color: "#9a94ad", marginTop: "auto" }}>
+        <div style={{ fontSize: 24, color: SURFACES["text-muted"], marginTop: "auto" }}>
           debugging reality · rides may break in production
         </div>
       </div>
     ),
     OG_SIZE,
   );
+}
+
+/**
+ * The social card for one attraction, and the exports its route file needs.
+ *
+ * Every attraction's `opengraph-image.tsx` was a 26-line copy of every other,
+ * differing only in a slug — including seven copies of the under-construction
+ * ternary and seven hand-typed `alt` strings that duplicated `attraction.name`
+ * three lines below the call that already had it. Renaming an attraction
+ * updated the pin, the page heading, the metadata title and the card body, and
+ * silently left seven `alt` strings stale with nothing asserting them.
+ *
+ * Derived here instead, so a route file is a slug and three re-exports.
+ */
+export function attractionCard(slug: string) {
+  const attraction: Attraction = attractionBySlug(slug);
+  return {
+    size: OG_SIZE,
+    contentType: OG_CONTENT_TYPE,
+    alt: `${attraction.name} — debugging reality`,
+    Image: () =>
+      parkCard({
+        title: attraction.name,
+        description: attraction.tagline,
+        accent: attraction.accent,
+        note:
+          attraction.status === "under-construction"
+            ? "this ride is still being built"
+            : undefined,
+      }),
+  };
 }

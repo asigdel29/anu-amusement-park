@@ -60,7 +60,10 @@
   --font-display: var(--font-changa), "Arial Black", sans-serif;
   --font-body: var(--font-work-sans), Arial, sans-serif;
 
-  /* Display scale, five steps. Applied by breakpoint, not chosen per-component. */
+  /* Display scale, five steps, measured from the reference. Applied by
+   * breakpoint, not chosen per-component. --display-5 is the system's top step
+   * and is declared though nothing currently reaches it; it is vocabulary, not
+   * an oversight. */
   --display-1: 1.875rem;
   --display-2: 3.75rem;
   --display-3: 4.375rem;
@@ -90,17 +93,22 @@
 
   /* ------------------------------------------------------------------ layout */
 
-  --grid-columns: 12;
-  --grid-gutter: 0px;
+  /* There is deliberately no column grid here. The reference's 12-column,
+   * 40px-gutter system was transcribed and then never used: this site's pages
+   * are a single column of prose, so the layout is a page margin plus a cap on
+   * the measure, and the tokens for columns, gutters and a header height sat
+   * unread with breakpoint overrides of their own. Add them back with the
+   * component that needs them. */
   --grid-margin: 16px;
   --content-max: 46rem; /* measure, not viewport: ~75ch of --body-lg */
-  --header-height: 3.125rem;
 
   /* ------------------------------------------------------------------ motion */
 
   --ease-default: cubic-bezier(0.215, 0.61, 0.355, 1);
   --ease-fade: cubic-bezier(0.19, 1, 0.22, 1);
   --ease-overshoot: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  /* The reference's fourth curve. Declared for completeness — nothing in this
+   * site currently animates out. */
   --ease-exit: cubic-bezier(0.55, 0.055, 0.675, 0.19);
 
   --duration-fade: 400ms;
@@ -112,24 +120,15 @@
 /* Breakpoints: 480 / 768 / 960 / 1024 / 1440 / 1920. Only the steps that actually
  * change a token appear below; the rest exist as component-level media queries. */
 
-@media (min-width: 480px) {
-  :root {
-    --header-height: 3.75rem;
-  }
-}
-
 @media (min-width: 768px) {
   :root {
-    --grid-gutter: 40px;
     --grid-margin: 40px;
-    --header-height: 5rem;
   }
 }
 
 @media (min-width: 1024px) {
   :root {
     --grid-margin: 80px;
-    --header-height: 6.75rem;
   }
 }
 

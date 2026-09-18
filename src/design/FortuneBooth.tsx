@@ -27,6 +27,7 @@
 import { useCallback, useState } from "react";
 import { FORTUNES } from "@/content/fortunes";
 import { parseEmphasis } from "@/content/prose";
+import { Runs } from "./Prose";
 import styles from "./FortuneBooth.module.css";
 
 export function FortuneBooth() {
@@ -48,15 +49,7 @@ export function FortuneBooth() {
   return (
     <div className={styles.booth}>
       <p className={styles.fortune} aria-live="polite">
-        {runs.map((run, i) =>
-          run.emphasis ? (
-            <em key={i} className={styles.emphasis}>
-              {run.text}
-            </em>
-          ) : (
-            <span key={i}>{run.text}</span>
-          ),
-        )}
+        <Runs runs={runs} />
       </p>
 
       <button type="button" className={styles.draw} onClick={draw}>

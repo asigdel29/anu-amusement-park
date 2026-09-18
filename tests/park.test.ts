@@ -42,7 +42,7 @@ import {
   resetFlight,
   startFlight,
 } from "@/park/flightStore";
-import { ORBIT_TARGET, PINNED_ATTRACTIONS } from "@/content/attractions";
+import { PINNED_ATTRACTIONS } from "@/park/pinnedAttractions";
 
 describe("orbit bounds", () => {
   it("keeps the camera above the horizon and off a straight-down view", () => {
@@ -111,7 +111,7 @@ describe("azimuth toward an attraction", () => {
   it("holds the current angle for a point at the exact centre", () => {
     // atan2(0, 0) answers zero, which would swing the camera to due north for
     // no reason. There is no direction to face at the centre.
-    expect(azimuthToward([...ORBIT_TARGET], 1.234)).toBe(1.234);
+    expect(azimuthToward([...ORBIT.target], 1.234)).toBe(1.234);
   });
 });
 
